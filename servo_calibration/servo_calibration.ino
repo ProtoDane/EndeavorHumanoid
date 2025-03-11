@@ -4,7 +4,7 @@
 // Hook up an Arduino to a USB port and external power for the servo (6-7.4V) and use a serial monitor (PuTTY recommended) to 
 // measure the pulse width values of the servo to the angle measurements marked out on the jig.
 //
-// Requires jig, see GitHub repo
+// Requires jig, see GitHub repo.
 //
 // Note: Neutral is the vertical center position of the servo, referred often as zero.  For 180-degree servos, the min/max values
 //       you want to calibrate are at +/-90 degrees, or two marks from the neutral.  For 270-degree servos, those values are at
