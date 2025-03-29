@@ -12,21 +12,26 @@ ControllerPtr myControllers[BP32_MAX_CONTROLLERS];
 // UART Instance
 HardwareSerial servoSerial(2);
 
+#define RELAY_PIN 13
+#define HEAD_PIN  12
+
+bool operable = true;
 // Controller address string
-// static const char * controller_addr_string = "98:b6:7f:0a:fa:59";
-static const char * controller_addr_string = "98:b6:d5:20:65:22"; 
+//static const char * controller_addr_string = CTRL_MAC; 
 
 void setup() {
   
   BP32.forgetBluetoothKeys();
+  
   // Initialize Bluetooth allowlist
   bd_addr_t controller_addr;
-  sscanf_bd_addr(controller_addr_string, controller_addr);
-
+  sscanf_bd_addr(CTRL_MAC, controller_addr);
   uni_bt_allowlist_add_addr(controller_addr);
   uni_bt_allowlist_set_enabled(true);
 
-  //delay(3000);
+  //
+  pinMode(RELAY_PIN, OUTPUT);
+  pinMode(HEAD_PIN, OUTPUT);
   
   // Initialize serial
   Serial.begin(115200);
@@ -69,14 +74,30 @@ void loop() {
         mainProcess(myController);
     }
   }
-  /*
+
   if (servoSerial.available()) {
 
-    String servoBuffer = servoSerial.readStringUntil('\n');
-    Serial.print("[S2040]: ");
-    Serial.println(servoBuffer);
+    int input = servoSerial.read();
+
+    if (input == 0b11110000) {
+      int v_first = servoSerial.read();
+      int v_last = servoSerial.read();
+      int i_first = servoSerial.read();
+      int i_last = servoSerial.read();
+
+      float v = (float)(v_first) + (float)(v_last)/100.0;
+      float i = (float)(i_first) + (float)(i_last)/100.0;
+
+      Serial.println("V: " + String(v) + " I: " + String(i) );
+
+      if (v < VOLTAGE_CUTOFF & v > 6.8) {
+        // operable = false;
+        // digitalWrite(RELAY_PIN, LOW);
+        // cmdDisable();
+      }
+    }
   }
-  */
+
   delay(50);
 }
 
@@ -84,28 +105,21 @@ void loop() {
 void mainProcess(ControllerPtr gamepad) {
 
   // Relay debounce variable; provides press/release action for toggling the relay
-  static bool relayDebounce = false;
   static bool relayState = false;
 
   // Check home button state and determine if a debounce action occurs and toggles the relay
-  if (gamepad->miscSystem()) {
+  if (gamepad->miscSystem() & operable) {
 
-    relayDebounce = true;
+    while(gamepad->miscSystem()) {BP32.update(); delay(50);}
 
-  } else {
-
-    if (relayDebounce) {
-
-      relayDebounce = false;
-      relayState = !relayState;
-      relayState ? cmdEnable() : cmdDisable();
-
-      Serial.println("Relay toggled");
-    }
+    relayState = !relayState;
+    digitalWrite(RELAY_PIN, !digitalRead(RELAY_PIN));
+    digitalWrite(HEAD_PIN, !digitalRead(HEAD_PIN));
+    relayState ? cmdEnable() : cmdDisable();
   }
 
   // Check relay state and process the remaining gamepad controls if it is high
-  if (relayState) {
+  if (relayState & operable) {
 
     // Fetch left/right joystick values
     int lx = gamepad->axisX();
@@ -122,46 +136,57 @@ void mainProcess(ControllerPtr gamepad) {
     } else if (gamepad->b()) {
 
       Serial.println("[ESP32]: (A) pressed");
+      actionSwipe(gamepad, false);
     
     } else if (gamepad->y()) {
 
       Serial.println("[ESP32]: (X) pressed");
+      actionRoll(gamepad);
     
     } else if (gamepad->x()) {
 
       Serial.println("[ESP32]: (Y) pressed");
+      actionSwipe(gamepad, true);
     
     } else if (gamepad->dpad() & DPAD_UP) {
 
       Serial.println("[ESP32]: DP-UP pressed");
-    
-    } else if (gamepad->dpad() & DPAD_RIGHT) {
-
-      Serial.println("[ESP32]: DP-RIGHT pressed");
+      actionEmote1(gamepad);
     
     } else if (gamepad->dpad() & DPAD_DOWN) {
 
       Serial.println("[ESP32]: DP-DOWN pressed");
+      actionEmote2(gamepad);
 
     } else if (gamepad->dpad() & DPAD_LEFT) {
     
       Serial.println("[ESP32]: DP-LEFT pressed");
-      
+      actionEmote3(gamepad);
+
+    } else if (gamepad->dpad() & DPAD_RIGHT) {
+
+      Serial.println("[ESP32]: DP-RIGHT pressed");
+      actionEmote4(gamepad);
+
     } else if (gamepad->l1()) {
     
       Serial.println("[ESP32]: L-Shoulder pressed");
+      actionPunch(gamepad, true);
       
     } else if (gamepad->l2()) {  
     
       Serial.println("[ESP32]: L-Trigger pressed");
+      actionUpperCut(gamepad, true);
       
     } else if (gamepad->r1()) {
     
       Serial.println("[ESP32]: R-Shoulder pressed");
+      actionPunch(gamepad, false);
       
     } else if (gamepad->r2()) {
     
       Serial.println("[ESP32]: R-Trigger pressed");
+      actionUpperCut(gamepad, false);
       
     } else if (gamepad->thumbL()) {
 
@@ -174,34 +199,42 @@ void mainProcess(ControllerPtr gamepad) {
     } else if (gamepad->miscBack()) {
 
       Serial.println("[ESP32]: (-) pressed");
+      actionGetupBack(gamepad);
 
     } else if (gamepad->miscHome()) {
 
       Serial.println("[ESP32]: (+) pressed");
+      actionGetupFront(gamepad);
 
     } else if (ly < -500 || ry < -500) {
     
       Serial.println("[ESP32]: Walk forward");
+      actionWalkFwd(gamepad);
       
     } else if (ly > 500 || ry > 500) {  
     
       Serial.println("[ESP32]: Walk backward");
+      actionWalkBwd(gamepad);
       
     } else if (lx > 500) {
     
       Serial.println("[ESP32]: Spin right");
+      actionTurn(gamepad, false);
       
     } else if (lx < -500) {
 
       Serial.println("[ESP32]: Spin left");
+      actionTurn(gamepad, true);
   
     } else if (rx < -500) {
 
       Serial.println("[ESP32]: Strafe left");
+      actionStrafe(gamepad, true);
       
     } else if (rx > 500) {
 
       Serial.println("[ESP32]: Strafe right");
+      actionStrafe(gamepad, false);
       
     } else {
       
@@ -212,30 +245,271 @@ void mainProcess(ControllerPtr gamepad) {
   }
 }
 
-void actionCrouch(ControllerPtr gamepad) {
+void actionEmote4(ControllerPtr gamepad) {
+
+  while(gamepad->dpad() & DPAD_RIGHT) {
+    
+    sendCommand(RETURN_NONE, CMD_PULSE_DELAY);
+    setServoDelay(emote4_1, RIGHT_ARM, 250);
+
+    sendCommand(RETURN_NONE, CMD_PULSE_DELAY);
+    setServoDelay(emote4_2, RIGHT_ARM, 250);
+    
+    BP32.update();
+  }
+}
+
+void actionEmote3 (ControllerPtr gamepad) {
+
+  sendCommand(RETURN_NONE, CMD_PULSE_DELAY);
+  setServoDelay(emote3, ALL_SERVOS, 500);
+
+  while (gamepad->dpad() & DPAD_LEFT) {BP32.update(); delay(50);}
+}
+
+void actionEmote2(ControllerPtr gamepad) {
+
+  float emoteStart[] = {-20.0, -90.0, 20.0, 90.0};
+  sendCommand(RETURN_NONE, CMD_PULSE);
+  setServoCluster(emoteStart, 0b110000000000110);
+  delay(250);
+
+  int i = 0;
+  while(gamepad->dpad() & DPAD_DOWN) {
+
+    sendCommand(RETURN_NONE, CMD_PULSE);
+    setServoSequence(i, sequence_emote2, 0b1101111111101101, 624);
+
+    i++;
+    BP32.update();
+    delay(64);
+  }
+}
+
+void actionEmote1(ControllerPtr gamepad) {
+  int i = 3;
+  while(gamepad->dpad() & DPAD_UP) {
+
+    sendCommand(RETURN_NONE, CMD_PULSE);
+    setServoSequence(i, sequence_emote1, 0b101111111100100, 120);
+
+    i++;
+    BP32.update();
+    delay(54);
+  }
+}
+
+void actionRoll(ControllerPtr gamepad) {
 
   sendCommand(RETURN_NONE, CMD_PULSE);
-  setServoCluster(crouchAngles, crouchMask);
+  setServoCluster(roll_1, ALL_SERVOS);
 
-  while(!gamepad->a()) {BP32.update(); delay(50);}
+  delay(600);
+
+  sendCommand(RETURN_NONE, CMD_PULSE_DELAY);
+  setServoDelay(roll_2, 0b11111111100010, 400);
+
+  sendCommand(RETURN_NONE, CMD_PULSE);
+  setServoCluster(roll_3, LEG_SERVOS);
+
+  while (gamepad-> y()) {BP32.update(); delay(50);}
+}
+
+void actionSwipe(ControllerPtr gamepad, bool left) {
+
+  sendCommand(RETURN_NONE, CMD_PULSE);
+  setServoCluster(left ? swipeL_1 : swipeR_1, ALL_SERVOS);
+
+  delay(250);
+
+  sendCommand(RETURN_NONE, CMD_PULSE);
+  setServoCluster(left ? swipeL_2 : swipeR_2, left ? 0b11111 : 0b11110000000000001);
+
+  while (left & gamepad->x() || !left & gamepad->b()) {BP32.update(); delay(50);}
+}
+
+void actionUpperCut(ControllerPtr gamepad, bool left) {
+  
+  sendCommand(RETURN_NONE, CMD_PULSE);
+  setServoCluster(left ? uppCutL_1 : uppCutR_1, ALL_SERVOS);
+
+  delay(500);
+
+  sendCommand(RETURN_NONE, CMD_PULSE);
+  setServoCluster(uppCut_2, left ? 0b10100000000000000 : 0b10100);
+
+  while (left & gamepad->l2() || !left & gamepad->r2() ) {BP32.update(); delay(50);}
+}
+
+void actionPunch(ControllerPtr gamepad, bool left) {
+
+  sendCommand(RETURN_NONE, CMD_PULSE);
+
+  setServoCluster(left ? punchL : punchR, ALL_SERVOS);
+
+  while (left & gamepad->l1() || !left & gamepad->r1()) {BP32.update(); delay(50);}
+  
+}
+
+void actionGetupFront(ControllerPtr gamepad) {
+  sendCommand(RETURN_NONE, CMD_PULSE_DELAY);
+  setServoDelay(getupFront_1, ALL_SERVOS, 100);
+
+  delay(500);
+
+  sendCommand(RETURN_NONE, CMD_PULSE_DELAY);
+  setServoDelay(getupFront_2, 0b10000000000010000, 100);
+
+  delay(250);
+  
+  sendCommand(RETURN_NONE, CMD_PULSE_DELAY);
+  setServoDelay(getupFront_3, 0b101, 100);
+
+  while (gamepad->miscHome()) {BP32.update(); delay(50);}
+
+  sendCommand(RETURN_NONE, CMD_PULSE_DELAY);
+  setServoDelay(idleAngles, ALL_SERVOS, 500);
+}
+
+void actionGetupBack(ControllerPtr gamepad) {
+  sendCommand(RETURN_NONE, CMD_PULSE);
+  setServoCluster(getupBack_1, ALL_SERVOS);
+
+  delay(500);
+
+  sendCommand(RETURN_NONE, CMD_PULSE);
+  setServoCluster(getupBack_2, 0b10010000000010010);
+
+  while (gamepad->miscBack()) {BP32.update(); delay(50);}
+}
+
+void actionStrafe(ControllerPtr gamepad, bool left) {
+  int i = 0;
+  while ( (left & gamepad->axisRX() < -500) || (!left & gamepad->axisRX() > 500) ) {
+
+    sendCommand(RETURN_NONE, CMD_PULSE);
+
+    if (left) {
+      setServoSequence(i, sequence_strafeL, 0b1111111100000, sizeof(sequence_strafeL) / sizeof(sequence_strafeL[0]));
+    } else {
+      setServoSequence(i, sequence_strafeR, 0b1111111100000, sizeof(sequence_strafeR) / sizeof(sequence_strafeR[0]));
+    }
+
+    i++;
+    BP32.update();
+    delay(40);
+  }
+}
+
+void actionTurn(ControllerPtr gamepad, bool ccw) {
+
+  for (int i = 0; i < 3; i++) {
+    sequence_turn[9 * i] = ccw ? -15.0 : 15.0;
+  }
+
+  for (int i = 3; i < 6; i++) {
+    sequence_turn[9 * i] = ccw ? 15.0 : -15.0;
+  }
+
+  int i = 0;
+  while ( (ccw & gamepad->axisX() < -500) || (!ccw & gamepad->axisX() > 500) ) {
+
+    sendCommand(RETURN_NONE, CMD_PULSE);
+    setServoSequence(i, sequence_turn, 0b1111111100001, sizeof(sequence_turn) / sizeof(sequence_turn[0]));
+
+    i++;
+    BP32.update();
+    delay(30);
+  }
+}
+
+void actionWalkBwd(ControllerPtr gamepad) {
+
+  sendCommand(RETURN_NONE, CMD_PULSE);
+  setServoSequence(0 ,sequence_initBwd, 0b00011111111100011, sizeof(sequence_initBwd) / sizeof(sequence_initBwd[0]));
+  delay(200);
+
+  int i = 1;
+  while ( (gamepad->axisY() > 500 || gamepad->axisRY() > 500) & i < 6) {
+
+    sendCommand(RETURN_NONE, CMD_PULSE);
+    setServoSequence(i ,sequence_initBwd, 0b00011111111100011, sizeof(sequence_initBwd) / sizeof(sequence_initBwd[0]));
+
+    i++;
+    BP32.update();
+    delay(45);
+  }
+
+  i = 3;
+  while (gamepad->axisY() > 500 || gamepad->axisRY() > 500) {
+    
+    sendCommand(RETURN_NONE, CMD_PULSE);
+    setServoSequence(i, sequence_walkBwd, 0b00011111111100011, sizeof(sequence_walkBwd) / sizeof(sequence_walkBwd[0]));
+    
+    i++;
+    BP32.update();
+    delay(45);
+  }
+}
+
+void actionWalkFwd(ControllerPtr gamepad) {
+  
+  sendCommand(RETURN_NONE, CMD_PULSE);
+  setServoSequence(0 ,sequence_initFwd, 0b00011111111100011, sizeof(sequence_initFwd) / sizeof(sequence_initFwd[0]));
+  delay(200);
+
+  int i = 1;
+  while ( (gamepad->axisY() < -500 || gamepad->axisRY() < -500) & i < 6) {
+
+    sendCommand(RETURN_NONE, CMD_PULSE);
+    setServoSequence(i ,sequence_initFwd, 0b00011111111100011, sizeof(sequence_initFwd) / sizeof(sequence_initFwd[0]));
+
+    i++;
+    BP32.update();
+    delay(45);
+  }
+
+  i = 3;
+  while (gamepad->axisY() < -500 || gamepad->axisRY() < -500) {
+    
+    sendCommand(RETURN_NONE, CMD_PULSE);
+    setServoSequence(i, sequence_walkFwd, 0b00011111111100011, sizeof(sequence_walkFwd) / sizeof(sequence_walkFwd[0]));
+    
+    i++;
+    BP32.update();
+    delay(45);
+  }
+}
+
+void actionCrouch(ControllerPtr gamepad) {
+
+  sendCommand(RETURN_NONE, CMD_PULSE_DELAY);
+  setServoDelay(crouchAngles, ALL_SERVOS, 150);
+  //setServoCluster(crouchAngles, ALL_SERVOS);
+
+  while(gamepad->a()) {BP32.update(); delay(50);}
 
 }
 
 void actionIdle() {
   
   sendCommand(RETURN_VA, CMD_PULSE);
-  setServoCluster(idleAngles, idleMask);
+  setServoCluster(idleAngles, ALL_SERVOS);
 }
 
 void cmdEnable() {
 
+  Serial.println("Enabling Servo2040...");
   sendCommand(RETURN_NONE, CMD_ENABLE);
-  setServoCluster(idleAngles, idleMask); //0b11110000000011111
+  setServoCluster(idleAngles, ALL_SERVOS); //0b11110000000011111
+
+  delay(250);
 
 }
 
 void cmdDisable() {
 
+  Serial.println("Disabling Servo2040...");
   sendCommand(RETURN_NONE, CMD_DISABLE);
 }
 
@@ -243,12 +517,56 @@ void sendCommand(int returnType, int cmd) {
   servoSerial.write(returnType << 4 | cmd);
 }
 
+void setServoDelay(float angles[], int pinMask, int delayMs) {
+  int first = delayMs / 100;
+  int second = delayMs % 100;
+  servoSerial.write(first);
+  servoSerial.write(second);
+
+  setServoCluster(angles, pinMask);
+  delay(delayMs);
+}
+
+void setServoSequence(int n, float sequence[], int pinMask, int sequenceLength) {
+
+  // Count the servos being actuated in pinMask
+  int servoCount = 0;
+  for (int i = 0; i < 18; i++) {
+
+    uint32_t mask = 1 << i;
+    if (pinMask & mask) {servoCount++;}
+
+  }
+
+  // Construct angles array
+  int p = 0;
+  for (int i = 0; i < 18; i++) {
+
+    uint32_t mask = 1 << i;
+    if (pinMask & mask) {
+
+      servoStruct servo = servoCluster[i];
+      int calibratedPulse = mapPulse(sequence[(n * servoCount + p) % sequenceLength], 
+        servo.min, servo.mid, servo.max, servo.angle180);
+
+      setServo(calibratedPulse);
+      // Serial.print(String(sequence[(n * servoCount + p) % sequenceLength]) + " ");
+      p++;
+
+    } else {
+      setServo(1);
+    }
+  }
+  
+  // Serial.println();
+}
+
 void setServoCluster(float angles[], int pinMask) {
   
   int pIndex = 0;
   for (int i = 0; i < 18; i++) {
 
-    uint8_t mask = 1 << i;
+    uint32_t mask = 1 << i;
     if (pinMask & mask) {
 
       servoStruct servo = servoCluster[i];
