@@ -6,13 +6,13 @@ include($ENV{PIMORONI_PICO_PATH}/pico_sdk_import.cmake)
 include($ENV{PIMORONI_PICO_PATH}/pimoroni_pico_import.cmake)
 
 # Configure Project
-project(servo2040_peripheral C CXX ASM)
+project(servo2040_client C CXX ASM)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
 pico_sdk_init()
 
-add_executable(${PROJECT_NAME} servo2040_peripheral.cpp)
+add_executable(${PROJECT_NAME} servo2040_client.cpp)
 
 include($ENV{PIMORONI_PICO_PATH}/libraries/servo2040/servo2040.cmake)
 include($ENV{PIMORONI_PICO_PATH}/drivers/button/button.cmake)
