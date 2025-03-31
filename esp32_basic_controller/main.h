@@ -5,15 +5,18 @@
 
 #define VOLTAGE_CUTOFF  7.20
 
+// PREAMBLES
+#define RETURN_NONE 0x08
+#define RETURN_VA   0x0F
+
+// COMMAND CODES
 #define CMD_PULSE       0x07
 #define CMD_PULSE_DELAY 0x06
 #define CMD_LED         0x02
 #define CMD_ENABLE      0x0F
 #define CMD_DISABLE     0x01
 
-#define RETURN_NONE 0x08
-#define RETURN_VA   0x0F
-
+// COMMONLY USED SERO MASKS
 #define ALL_SERVOS  0x1FFFF
 #define LEG_SERVOS  0b1111111100000
 #define RIGHT_ARM   0b11110
@@ -23,29 +26,29 @@ struct servoStruct {
   int min;
   int mid;
   int max;
-  bool angle180; // if false, will assume 270 angle range
+  bool angle180; // if false, will map to 270 angle range
 };
 
-// define servo's calibration parameters
-servoStruct s_torso = {515, 1458, 2397, false};
-servoStruct s_ra1 =   {510, 1495, 2397, false};
-servoStruct s_ra2 =   {543, 1505, 2413, false};
-servoStruct s_ra3 =   {592, 1495, 2404, true};
-servoStruct s_ra4 =   {593, 1493, 2385, true};
-servoStruct s_rl1 =   {592, 1512, 2405, true};
-servoStruct s_rl2 =   {588, 1490, 2372, true};
-servoStruct s_rl3 =   {643, 1550, 2432, true};
-servoStruct s_rl4 =   {587, 1493, 2405, true};
-servoStruct s_la1 =   {505, 1457, 2409, false};
-servoStruct s_la2 =   {550, 1509, 2453, false};
-servoStruct s_la3 =   {622, 1530, 2480, true};
-servoStruct s_la4 =   {622, 1533, 2440, true};
-servoStruct s_ll1 =   {633, 1520, 2440, true};
-servoStruct s_ll2 =   {685, 1580, 2470, true};
-servoStruct s_ll3 =   {567, 1522, 2437, true};
-servoStruct s_ll4 =   {591, 1520, 2428, true};
+// Servo calibration parameters
+servoStruct s_torso = {515, 1458, 2397, false};   // TORSO
+servoStruct s_ra1 =   {510, 1495, 2397, false};   // RIGHT ARM SHOULDER BASE
+servoStruct s_ra2 =   {543, 1505, 2413, false};   // RIGHT ARM SHOULDER SWING
+servoStruct s_ra3 =   {592, 1495, 2404, true};    // RIGHT ARM BICEP SWIVEL
+servoStruct s_ra4 =   {593, 1493, 2385, true};    // RIGHT ARM ELBOW
+servoStruct s_rl1 =   {592, 1512, 2405, true};    // RIGHT LEG THIGH
+servoStruct s_rl2 =   {588, 1490, 2372, true};    // RIGHT LEG FEMUR
+servoStruct s_rl3 =   {643, 1550, 2432, true};    // RIGHT LEG TIBIA
+servoStruct s_rl4 =   {587, 1493, 2405, true};    // RIGHT LEG ANKLE
+servoStruct s_la1 =   {505, 1457, 2409, false};   // LEFT ARM SHOULDER BASE
+servoStruct s_la2 =   {550, 1509, 2453, false};   // LEFT ARM SHOULDER SWING
+servoStruct s_la3 =   {622, 1530, 2480, true};    // LEFT ARM BICEP SWIVEL
+servoStruct s_la4 =   {622, 1533, 2440, true};    // LEFT ARM ELBOW
+servoStruct s_ll1 =   {633, 1520, 2440, true};    // LEFT LEG THIGH
+servoStruct s_ll2 =   {685, 1580, 2470, true};    // LEFT LEG FEMUR
+servoStruct s_ll3 =   {567, 1522, 2437, true};    // LEFT LEG TIBIA
+servoStruct s_ll4 =   {591, 1520, 2428, true};    // LEFT LEG ANKLE
 
-// define pin mapping array for servos: 0th index = SERVO1, 17th index = SERVO18
+// Pin mapping array for servos: 0th index = SERVO1, 17th index = SERVO18
 servoStruct servoCluster[] = {
   s_torso, s_ra1, s_ra2, s_ra3, s_ra4,
   s_rl1, s_rl2, s_rl3, s_rl4,
