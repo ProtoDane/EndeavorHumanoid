@@ -286,6 +286,7 @@ void actionEmote2(ControllerPtr gamepad) {
   }
 }
 
+// Shikanoko nokoko koshitantan dance emote attempt
 void actionEmote1(ControllerPtr gamepad) {
   int i = 3;
   while(gamepad->dpad() & DPAD_UP) {
@@ -513,8 +514,8 @@ void cmdDisable() {
   sendCommand(RETURN_NONE, CMD_DISABLE);
 }
 
-void sendCommand(int returnType, int cmd) {
-  servoSerial.write(returnType << 4 | cmd);
+void sendCommand(int preamble, int cmd) {
+  servoSerial.write(preamble << 4 | cmd);
 }
 
 void setServoDelay(float angles[], int pinMask, int delayMs) {
@@ -538,7 +539,7 @@ void setServoSequence(int n, float sequence[], int pinMask, int sequenceLength) 
 
   }
 
-  // Construct angles array
+  // Check servos once again and set their pulse to its respective servo in the n-th keyframe
   int p = 0;
   for (int i = 0; i < 18; i++) {
 
@@ -550,24 +551,23 @@ void setServoSequence(int n, float sequence[], int pinMask, int sequenceLength) 
         servo.min, servo.mid, servo.max, servo.angle180);
 
       setServo(calibratedPulse);
-      // Serial.print(String(sequence[(n * servoCount + p) % sequenceLength]) + " ");
       p++;
 
     } else {
       setServo(1);
     }
   }
-  
-  // Serial.println();
 }
 
 void setServoCluster(float angles[], int pinMask) {
   
-  int pIndex = 0;
+  int pIndex = 0; // angles array index (assumes array length and number of 1's in pinMask are equal)
+  
   for (int i = 0; i < 18; i++) {
 
-    uint32_t mask = 1 << i;
-    if (pinMask & mask) {
+    uint32_t mask = 1 << i; // step forward mask by 1 bit
+
+    if (pinMask & mask) { // true if i-th pinMask bit is equal to 1
 
       servoStruct servo = servoCluster[i];
       int calibratedPulse = mapPulse(angles[pIndex], servo.min, servo.mid, servo.max, servo.angle180);
