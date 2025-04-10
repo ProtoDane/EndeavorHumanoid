@@ -141,7 +141,7 @@ void mainProcess(ControllerPtr gamepad) {
     } else if (gamepad->y()) {
 
       Serial.println("[ESP32]: (X) pressed");
-      actionRoll(gamepad);
+      if(!ULT_LOCK) {actionRoll(gamepad);}
     
     } else if (gamepad->x()) {
 
