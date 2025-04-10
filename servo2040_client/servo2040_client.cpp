@@ -141,7 +141,7 @@ void return_sensor() {
     uart_putc(UART_ID, (uint8_t)(i_int % 100));
 }
 
-void set_led(uint8_t values) {
+void set_led(int values) {
 
     for (int i = 0; i < 6; i++) {
 
