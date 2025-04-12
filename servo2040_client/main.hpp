@@ -34,4 +34,4 @@ void cmd_disable(void);
 
 void set_servos(void);
 void set_servos_delay(void);
-void set_led(uint8_t values);
+void set_led(int values);

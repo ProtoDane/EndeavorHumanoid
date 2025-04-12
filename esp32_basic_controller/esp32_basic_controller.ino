@@ -156,7 +156,8 @@ void mainProcess(ControllerPtr gamepad) {
     } else if (gamepad->dpad() & DPAD_DOWN) {
 
       Serial.println("[ESP32]: DP-DOWN pressed");
-      actionEmote2(gamepad);
+      //actionEmote2(gamepad);
+      actionEmote5(gamepad);
 
     } else if (gamepad->dpad() & DPAD_LEFT) {
     
@@ -206,32 +207,32 @@ void mainProcess(ControllerPtr gamepad) {
       Serial.println("[ESP32]: (+) pressed");
       actionGetupFront(gamepad);
 
-    } else if (ly < -500 || ry < -500) {
+    } else if (ly < -AXIS_THRESHOLD || ry < -AXIS_THRESHOLD) {
     
       Serial.println("[ESP32]: Walk forward");
       actionWalkFwd(gamepad);
       
-    } else if (ly > 500 || ry > 500) {  
+    } else if (ly > AXIS_THRESHOLD || ry > AXIS_THRESHOLD) {  
     
       Serial.println("[ESP32]: Walk backward");
       actionWalkBwd(gamepad);
       
-    } else if (lx > 500) {
+    } else if (lx > AXIS_THRESHOLD) {
     
       Serial.println("[ESP32]: Spin right");
       actionTurn(gamepad, false);
       
-    } else if (lx < -500) {
+    } else if (lx < -AXIS_THRESHOLD) {
 
       Serial.println("[ESP32]: Spin left");
       actionTurn(gamepad, true);
   
-    } else if (rx < -500) {
+    } else if (rx < -AXIS_THRESHOLD) {
 
       Serial.println("[ESP32]: Strafe left");
       actionStrafe(gamepad, true);
       
-    } else if (rx > 500) {
+    } else if (rx > AXIS_THRESHOLD) {
 
       Serial.println("[ESP32]: Strafe right");
       actionStrafe(gamepad, false);
@@ -242,6 +243,52 @@ void mainProcess(ControllerPtr gamepad) {
       actionIdle();
 
     }
+  }
+}
+
+void actionEmote5(ControllerPtr gamepad) {
+
+  float emote5_init_1[] = {
+    0.0, 
+    0.0, -90.0, -90.0, 45.0, 
+    -9.1, -46.6, 33.1, -9.1,
+    9.1, 46.6, -33.1, 9.1, 
+    0.0, 90.0, 90.0, -45.0
+  };
+
+  float emote5_init_2[] = {
+    0.0, 
+    0.0, -90.0, 0.0, 0.0, 
+    -9.1, -46.6, 33.1, -9.1,
+    9.1, 46.6, -33.1, 9.1, 
+    0.0, 90.0, 90.0, 0.0    
+  };
+
+  sendCommand(RETURN_NONE, CMD_PULSE_DELAY);
+  setServoDelay(emote5_init_1, ALL_SERVOS, 250);
+
+  int i = 0;
+  bool select = true;
+  while(gamepad->dpad() & DPAD_DOWN) {
+
+    sendCommand(RETURN_NONE, CMD_PULSE);
+    if (select) {
+      setServoSequence(i, emote5_1, 0b11111111100010, 480);
+    } else {
+      setServoSequence(i, emote5_2, 0b1111111111000, 480);
+    }
+
+    if (i == 48) {
+      i = 0;
+      select = !select;
+      delayMicroseconds(75758);
+      sendCommand(RETURN_NONE, CMD_PULSE);
+      setServoCluster(select ? emote5_init_1:emote5_init_2, ALL_SERVOS);
+    }
+    
+    i++;
+    delayMicroseconds(75758);
+    BP32.update();    
   }
 }
 
@@ -386,7 +433,7 @@ void actionGetupBack(ControllerPtr gamepad) {
 
 void actionStrafe(ControllerPtr gamepad, bool left) {
   int i = 0;
-  while ( (left & gamepad->axisRX() < -500) || (!left & gamepad->axisRX() > 500) ) {
+  while ( (left & gamepad->axisRX() < -AXIS_THRESHOLD) || (!left & gamepad->axisRX() > AXIS_THRESHOLD) ) {
 
     sendCommand(RETURN_NONE, CMD_PULSE);
 
@@ -413,7 +460,7 @@ void actionTurn(ControllerPtr gamepad, bool ccw) {
   }
 
   int i = 0;
-  while ( (ccw & gamepad->axisX() < -500) || (!ccw & gamepad->axisX() > 500) ) {
+  while ( (ccw & gamepad->axisX() < -AXIS_THRESHOLD) || (!ccw & gamepad->axisX() > AXIS_THRESHOLD) ) {
 
     sendCommand(RETURN_NONE, CMD_PULSE);
     setServoSequence(i, sequence_turn, 0b1111111100001, sizeof(sequence_turn) / sizeof(sequence_turn[0]));
@@ -431,18 +478,18 @@ void actionWalkBwd(ControllerPtr gamepad) {
   delay(200);
 
   int i = 1;
-  while ( (gamepad->axisY() > 500 || gamepad->axisRY() > 500) & i < 6) {
+  while ( (gamepad->axisY() > AXIS_THRESHOLD || gamepad->axisRY() > AXIS_THRESHOLD) & i < 6) {
 
     sendCommand(RETURN_NONE, CMD_PULSE);
     setServoSequence(i ,sequence_initBwd, 0b00011111111100011, sizeof(sequence_initBwd) / sizeof(sequence_initBwd[0]));
 
     i++;
     BP32.update();
-    delay(45);
+    delay(25);
   }
 
   i = 3;
-  while (gamepad->axisY() > 500 || gamepad->axisRY() > 500) {
+  while (gamepad->axisY() > AXIS_THRESHOLD || gamepad->axisRY() > AXIS_THRESHOLD) {
     
     sendCommand(RETURN_NONE, CMD_PULSE);
     setServoSequence(i, sequence_walkBwd, 0b00011111111100011, sizeof(sequence_walkBwd) / sizeof(sequence_walkBwd[0]));
@@ -460,18 +507,18 @@ void actionWalkFwd(ControllerPtr gamepad) {
   delay(200);
 
   int i = 1;
-  while ( (gamepad->axisY() < -500 || gamepad->axisRY() < -500) & i < 6) {
+  while ( (gamepad->axisY() < -AXIS_THRESHOLD || gamepad->axisRY() < -AXIS_THRESHOLD) & i < 6) {
 
     sendCommand(RETURN_NONE, CMD_PULSE);
     setServoSequence(i ,sequence_initFwd, 0b00011111111100011, sizeof(sequence_initFwd) / sizeof(sequence_initFwd[0]));
 
     i++;
     BP32.update();
-    delay(45);
+    delay(25);
   }
 
   i = 3;
-  while (gamepad->axisY() < -500 || gamepad->axisRY() < -500) {
+  while (gamepad->axisY() < -AXIS_THRESHOLD || gamepad->axisRY() < -AXIS_THRESHOLD) {
     
     sendCommand(RETURN_NONE, CMD_PULSE);
     setServoSequence(i, sequence_walkFwd, 0b00011111111100011, sizeof(sequence_walkFwd) / sizeof(sequence_walkFwd[0]));
@@ -503,6 +550,8 @@ void cmdEnable() {
   Serial.println("Enabling Servo2040...");
   sendCommand(RETURN_NONE, CMD_ENABLE);
   setServoCluster(idleAngles, ALL_SERVOS); //0b11110000000011111
+
+  
 
   delay(250);
 
