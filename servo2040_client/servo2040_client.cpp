@@ -114,8 +114,8 @@ void cmd_set_led() {
 
 void cmd_enable() {
 
-    servos.enable_all();
-    set_servos();
+    // servos.enable_all();
+    set_servos(); //
 }
 
 void cmd_disable() {
