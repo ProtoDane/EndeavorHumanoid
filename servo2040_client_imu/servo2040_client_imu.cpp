@@ -1,4 +1,7 @@
-#include "servo2040_client.hpp"
+// Pimoroni Servo2040 client driver with IMU readback functionality.
+// Uses the Adafruit BNO-055 connected to ADC0 (I2C1-SDA) and ADC1 (I2C1-SCL) 
+
+#include "servo2040_client_imu.hpp"
 using namespace plasma;
 using namespace servo;
 
@@ -9,8 +12,16 @@ Analog vol_adc = Analog(servo2040::SHARED_ADC, servo2040::VOLTAGE_GAIN);
 Analog cur_adc = Analog(servo2040::SHARED_ADC, servo2040::CURRENT_GAIN);
 AnalogMux mux = AnalogMux(servo2040::ADC_ADDR_0, servo2040::ADC_ADDR_1, servo2040::ADC_ADDR_2, PIN_UNUSED, servo2040::SHARED_ADC);
 
+BNO055 imu(i2c1, 26, 27);
+
 float servoValues[] = {0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0};
 
+// Core1 processor running IMU functions and voltage/current readings
+void core1_main() {
+
+}
+
+// Core0 processor running UART functions and servo actuation
 int main() {
     
     sleep_ms(100);
