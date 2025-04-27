@@ -39,7 +39,7 @@ struct servoStruct {
 // devices and incorporate their respective calibration and controller mac
 // addresses
 enum DeviceID {E20A, C25A};
-#define DEVICE_SELECT C25A
+#define DEVICE_SELECT E20A
 
 #if DEVICE_SELECT == E20A
 
@@ -58,7 +58,7 @@ enum DeviceID {E20A, C25A};
   servoStruct s_la2 =   {550, 1509, 2453, false};   // LEFT ARM SHOULDER SWING
   servoStruct s_la3 =   {622, 1530, 2480, true};    // LEFT ARM BICEP SWIVEL
   servoStruct s_la4 =   {622, 1533, 2440, true};    // LEFT ARM ELBOW
-  servoStruct s_ll1 =   {633, 1520, 2440, true};    // LEFT LEG THIGH
+  servoStruct s_ll1 =   {597, 1500, 2410, true};    // LEFT LEG THIGH
   servoStruct s_ll2 =   {685, 1580, 2470, true};    // LEFT LEG FEMUR
   servoStruct s_ll3 =   {567, 1522, 2437, true};    // LEFT LEG TIBIA
   servoStruct s_ll4 =   {591, 1520, 2428, true};    // LEFT LEG ANKLE
