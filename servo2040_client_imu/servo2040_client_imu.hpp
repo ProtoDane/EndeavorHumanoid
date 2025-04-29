@@ -17,6 +17,7 @@
 
 // User Libraries
 #include "rp2040_bno055.hpp"
+#include "RP2040Atomic.hpp"
 
 #define UART_ID uart1
 
@@ -37,6 +38,7 @@ typedef enum {
 uint8_t wait_until_uart(void);
 
 void return_sensor(void);
+void return_imu(void);
 
 void cmd_set_led(void);
 void cmd_enable(void);
