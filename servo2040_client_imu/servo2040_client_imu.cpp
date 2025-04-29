@@ -4,6 +4,7 @@
 #include "servo2040_client_imu.hpp"
 using namespace plasma;
 using namespace servo;
+using namespace patom::types;
 
 ServoCluster servos = ServoCluster(pio0, 0, servo2040::SERVO_1, 18);
 WS2812 led_bar(servo2040::NUM_LEDS, pio1, 0, servo2040::LED_DATA);
@@ -13,27 +14,61 @@ Analog cur_adc = Analog(servo2040::SHARED_ADC, servo2040::CURRENT_GAIN);
 AnalogMux mux = AnalogMux(servo2040::ADC_ADDR_0, servo2040::ADC_ADDR_1, servo2040::ADC_ADDR_2, PIN_UNUSED, servo2040::SHARED_ADC);
 
 BNO055 imu(i2c1, 26, 27);
+patomic_uint64_t euler_x;
+patomic_uint64_t euler_y;
+patomic_uint64_t euler_z;
 
 float servoValues[] = {0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0};
 
 // Core1 processor running IMU functions and voltage/current readings
 void core1_main() {
+    bool i = imu.begin();
 
+    if (!i) {
+        multicore_fifo_push_blocking(0x0F);
+        while(1) sleep_ms(10);
+    }
+
+    uint8_t status, self_test, error;
+    imu.getSystemStatus(&status, &self_test, &error);
+
+    multicore_fifo_push_blocking(error);
+
+    if (error != 0) {
+        while(1) sleep_ms(10);
+    }
+    
+    vector v;
+    while(1) {
+        
+        uint64_t x, y, z;
+        imu.getVector(VECTOR_EULER, &v);
+        memcpy(&x, &v.x, sizeof(double)); // No patomic_double, so copy the binary to uint64_t (same size as double)
+        memcpy(&y, &v.y, sizeof(double));
+        memcpy(&z, &v.z, sizeof(double));
+        euler_x = x;
+        euler_y = y;
+        euler_z = z;
+        sleep_ms(10); // 100 Hz sensor updates
+    }
 }
 
-// Core0 processor running UART functions and servo actuation
+// Core0 processor running UART functions and servo actuation, runs first
 int main() {
-    
-    sleep_ms(100);
 
     stdio_init_all();
-
-    // Initialize Servo Cluster
-    servos.init();
+    patom::PseudoAtomicInit();
 
     // Initialize LED bar
     led_bar.start();
     led_bar.clear();
+    set_led(0b100000);
+    sleep_ms(100);
+
+    // Initialize Servo Cluster
+    servos.init();\
+    set_led(0b110000);
+    sleep_ms(100);
 
     // Enable UART
     uart_init(UART_ID, 115200);
@@ -41,10 +76,25 @@ int main() {
     gpio_set_function(21, GPIO_FUNC_UART);
     gpio_pull_up(20);
     gpio_pull_up(21);
+    set_led(0b111000);
+    sleep_ms(100);
 
-    // Configure relay pin
+    // Enable core1
+    multicore_launch_core1(core1_main);
+    set_led(0b111100);
+    sleep_ms(100);
 
-    //blink LED bar
+    // Check IMU status
+    uint32_t success = multicore_fifo_pop_blocking();
+
+    if (success != 0) {
+        set_led(0b101010);
+        while(1) sleep_ms(10);
+    }
+    set_led(0b111110);
+    sleep_ms(100);
+
+    //blink LED bar for visual confirmation
     set_led(0b111111);
     sleep_ms(500);
     set_led(0b1000000);
@@ -68,9 +118,11 @@ int main() {
             // no return message sent (0b1000)
 
         } else if (returnType == 0x0F) {
-            // send back voltage and current ()
+            // send back voltage and current (0b1111)
             return_sensor();
-
+        } else if (returnType == 0b1001) {
+            // send back imu data
+            return_imu();
         } else {
             // packet is invalid
             cmdSuccess = false;
@@ -125,13 +177,28 @@ void cmd_set_led() {
 
 void cmd_enable() {
 
-    // servos.enable_all();
-    set_servos(); //
+    set_servos();
 }
 
 void cmd_disable() {
 
     servos.disable_all();
+}
+
+void return_imu() {
+
+    uint64_t x, y, z;
+    x = euler_x.Load(); // yaw
+    y = euler_y.Load(); // pitch
+    z = euler_z.Load(); // roll
+
+    uint8_t buffer[3 * sizeof(uint64_t)];
+    memcpy(&buffer[0], &x, sizeof(uint64_t));
+    memcpy(&buffer[sizeof(uint64_t)], &y, sizeof(uint64_t));
+    memcpy(&buffer[2 * sizeof(uint64_t)], &z, sizeof(uint64_t));
+
+    uart_putc(UART_ID, 0b10010000);
+    uart_write_blocking(UART_ID, buffer, sizeof(buffer));
 }
 
 void return_sensor() {
@@ -210,6 +277,7 @@ void set_servos_delay() {
 
             }
         }
-        sleep_ms(delay / 100);
+        // sleep_ms(delay / 100);
+        sleep_us(delay * 1000 / 100);
     }
 }

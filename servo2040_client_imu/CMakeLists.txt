@@ -8,7 +8,7 @@ include($ENV{PIMORONI_PICO_PATH}/pimoroni_pico_import.cmake)
 # Configure Project
 project(servo2040_client_imu C CXX ASM)
 set(CMAKE_C_STANDARD 11)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 pico_sdk_init()
 
@@ -19,6 +19,7 @@ include($ENV{PIMORONI_PICO_PATH}/drivers/button/button.cmake)
 include($ENV{PIMORONI_PICO_PATH}/drivers/analog/analog.cmake)
 include($ENV{PIMORONI_PICO_PATH}/drivers/analogmux/analogmux.cmake)
 include(C:/VSARM/lib/rp2040_bno055/rp2040_bno055.cmake)
+include(C:/VSARM/lib/RP2040_Pseudo_Atomic/CMakeLists.txt)
 
 target_link_libraries(${PROJECT_NAME}
     pico_stdlib
@@ -28,6 +29,7 @@ target_link_libraries(${PROJECT_NAME}
     analogmux
     pico_multicore
     rp2040_bno055
+    RP2040Atomic
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE 
