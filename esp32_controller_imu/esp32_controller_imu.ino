@@ -16,18 +16,21 @@ HardwareSerial servoSerial(2);
 #define HEAD_PIN  12
 
 bool operable = true;
-// Controller address string
-//static const char * controller_addr_string = CTRL_MAC; 
 
-TaskHandle_t h_taskIMU;
+TaskHandle_t h_taskSerialIn;
+QueueHandle_t imuQueue;
 
-void TaskIMU(void *pvParameters) {
+void taskSerialIn(void *pvParameters) {
   
+  imuQueue = xQueueCreate(1, sizeof(struct queueBin)); // queue holds one value; intention is to constantly clear queue and replace it with updated values
+
   for(;;) {
     if (servoSerial.available()) {
       int input = servoSerial.read();
 
       if (input == 0b11110000) {
+        
+        // Do something with V/I inputs (unused)
 
       } else if (input == 0b10010000) {
 
@@ -36,12 +39,13 @@ void TaskIMU(void *pvParameters) {
         uint8_t buffer[24];
         servoSerial.readBytes(buffer, 24);
 
-        double x, y, z;
-        memcpy(&x, &buffer[0], 8);
-        memcpy(&y, &buffer[8], 8);
-        memcpy(&z, &buffer[16], 8);
+        queueBin msg;
+        memcpy(&msg.eulerX, &buffer[0], 8);
+        memcpy(&msg.eulerY, &buffer[8], 8);
+        memcpy(&msg.eulerZ, &buffer[16], 8);
+        xQueueOverwrite(imuQueue, (void *) &msg);          
 
-        Serial.printf("YAW: %.2f PITCH: %.2f ROLL: %.2f\n", x, y, z);
+        // Serial.printf("==YAW: %.2f PITCH: %.2f ROLL: %.2f\n", msg.eulerX, msg.eulerY, msg.eulerZ);
       }
     }
     delay(10);
@@ -61,7 +65,7 @@ void setup() {
   Serial.println(servoCluster[3].mid);
   servoSerial.begin(115200, SERIAL_8N1, 16, 17);
 
-  xTaskCreatePinnedToCore(TaskIMU, "TaskIMU", 10000, NULL, 1, &h_taskIMU, 1);
+  xTaskCreatePinnedToCore(taskSerialIn, "taskSerialIn", 10000, NULL, 1, &h_taskSerialIn, 1);
   delay(500);
 
   BP32.forgetBluetoothKeys();
@@ -557,6 +561,16 @@ void actionIdle() {
   
   sendCommand(RETURN_IMU, CMD_PULSE);
   setServoCluster(idleAngles, ALL_SERVOS);
+
+  queueBin q;
+  getIMU(&q);
+  Serial.printf("YAW: %.2f PITCH: %.2f ROLL: %.2f\n", q.eulerX, q.eulerY, q.eulerZ);
+}
+
+void getIMU(queueBin *q) {
+  if (uxQueueMessagesWaiting(imuQueue) > 0) {
+    xQueueReceive(imuQueue, q, 0);
+  }
 }
 
 void cmdEnable() {
@@ -564,8 +578,6 @@ void cmdEnable() {
   Serial.println("Enabling Servo2040...");
   sendCommand(RETURN_NONE, CMD_ENABLE);
   setServoCluster(idleAngles, ALL_SERVOS); //0b11110000000011111
-
-  
 
   delay(250);
 
