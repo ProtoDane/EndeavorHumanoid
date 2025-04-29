@@ -40,6 +40,12 @@ struct servoStruct {
   bool angle180; // if false, will map to 270 angle range
 };
 
+struct queueBin {
+  double eulerX;
+  double eulerY;
+  double eulerZ;
+};
+
 // If you're working with multiple robots, you can use this to select between
 // devices and incorporate their respective calibration and controller mac
 // addresses
