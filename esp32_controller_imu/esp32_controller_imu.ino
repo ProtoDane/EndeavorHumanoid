@@ -215,15 +215,14 @@ void mainProcess(ControllerPtr gamepad) {
 
       Serial.println("[ESP32]: R-Thumb pressed");
 
-    } else if (gamepad->miscBack()) {
+    } else if (gamepad->miscBack()) {   // (-) Button Pressed
 
-      Serial.println("[ESP32]: (-) pressed");
-      actionGetupBack(gamepad);
+      // actionGetupBack(gamepad);
 
-    } else if (gamepad->miscHome()) {
+    } else if (gamepad->miscHome()) {   // (+) Button Pressed
 
-      Serial.println("[ESP32]: (+) pressed");
-      actionGetupFront(gamepad);
+      // actionGetupFront(gamepad);
+      fallRecovery(gamepad);
 
     } else if (ly < -AXIS_THRESHOLD || ry < -AXIS_THRESHOLD) {
     
@@ -417,36 +416,41 @@ void actionPunch(ControllerPtr gamepad, bool left) {
   
 }
 
-void actionGetupFront(ControllerPtr gamepad) {
-  sendCommand(RETURN_NONE, CMD_PULSE_DELAY);
-  setServoDelay(getupFront_1, ALL_SERVOS, 100);
+void fallRecovery(ControllerPtr gamepad) {
+  sendCommand(RETURN_IMU, CMD_NONE);
+  queueBin q;
+  getIMU(&q);
+  double pitch = q.eulerY;
+  Serial.print("PITCH: " + String(pitch) + " | ");
+  if (pitch > 30.0) {
+    Serial.println("Robot on its back!");
+    sendCommand(RETURN_NONE, CMD_PULSE);
+    setServoCluster(getupBack_1, ALL_SERVOS);
 
-  delay(500);
+    delay(500);
 
-  sendCommand(RETURN_NONE, CMD_PULSE_DELAY);
-  setServoDelay(getupFront_2, 0b10000000000010000, 100);
+    sendCommand(RETURN_NONE, CMD_PULSE);
+    setServoCluster(getupBack_2, 0b10010000000010010);
 
-  delay(250);
-  
-  sendCommand(RETURN_NONE, CMD_PULSE_DELAY);
-  setServoDelay(getupFront_3, 0b101, 100);
+  } else if (pitch < -30.0) {
+    Serial.println("Robot faceplanted!");
+    sendCommand(RETURN_NONE, CMD_PULSE_DELAY);
+    setServoDelay(getupFront_1, ALL_SERVOS, 100);
+
+    delay(500);
+
+    sendCommand(RETURN_NONE, CMD_PULSE_DELAY);
+    setServoDelay(getupFront_2, 0b10000000000010000, 100);
+
+    delay(250);
+    
+    sendCommand(RETURN_NONE, CMD_PULSE_DELAY);
+    setServoDelay(getupFront_3, 0b101, 100);
+  }
 
   while (gamepad->miscHome()) {BP32.update(); delay(50);}
-
   sendCommand(RETURN_NONE, CMD_PULSE_DELAY);
   setServoDelay(idleAngles, ALL_SERVOS, 500);
-}
-
-void actionGetupBack(ControllerPtr gamepad) {
-  sendCommand(RETURN_NONE, CMD_PULSE);
-  setServoCluster(getupBack_1, ALL_SERVOS);
-
-  delay(500);
-
-  sendCommand(RETURN_NONE, CMD_PULSE);
-  setServoCluster(getupBack_2, 0b10010000000010010);
-
-  while (gamepad->miscBack()) {BP32.update(); delay(50);}
 }
 
 void actionStrafe(ControllerPtr gamepad, bool left) {
@@ -563,13 +567,15 @@ void actionIdle() {
   setServoCluster(idleAngles, ALL_SERVOS);
 
   queueBin q;
+  unsigned long start = micros();
   getIMU(&q);
-  Serial.printf("YAW: %.2f PITCH: %.2f ROLL: %.2f\n", q.eulerX, q.eulerY, q.eulerZ);
+  unsigned long duration = micros() - start;
+  Serial.printf("YAW: %.2f PITCH: %.2f ROLL: %.2f (%ld u)\n", q.eulerX, q.eulerY, q.eulerZ, duration);
 }
 
 void getIMU(queueBin *q) {
   if (uxQueueMessagesWaiting(imuQueue) > 0) {
-    xQueueReceive(imuQueue, q, 0);
+    xQueuePeek(imuQueue, q, 0);
   }
 }
 

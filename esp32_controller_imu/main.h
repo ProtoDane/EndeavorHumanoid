@@ -14,6 +14,7 @@
 #define CMD_LED         0x02
 #define CMD_ENABLE      0x0F
 #define CMD_DISABLE     0x01
+#define CMD_NONE        0x00
 
 // COMMONLY USED SERO MASKS
 #define ALL_SERVOS  0x1FFFF
@@ -366,8 +367,8 @@ float punchR[] = {
 
 float getupFront_1[] = {
   0.0, 0.0, -90.0, 0.0, -20.0,
-  -45.0, -75.0, 75.0, -45.0,
-  45.0, 75.0, -75.0, 45.0,
+  -50.0, -75.0, 75.0, -50.0,
+  50.0, 75.0, -75.0, 50.0,
   0.0, 90.0, 0.0, 20.0
 };
 
@@ -381,8 +382,8 @@ float getupFront_3[] = {
 
 float getupBack_1[] = {
   0.0, 0.0, 90.0, 0.0, -20.0,
-  -45.0, -75.0, 75.0, -45.0,
-  45.0, 75.0, -75.0, 45.0,
+  -50.0, -75.0, 75.0, -50.0,
+  50.0, 75.0, -75.0, 50.0,
   0.0, -90.0, 0.0, 20.0
 };
 
