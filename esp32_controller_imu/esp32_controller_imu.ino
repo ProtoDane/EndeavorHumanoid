@@ -20,11 +20,18 @@ bool operable = true;
 TaskHandle_t h_taskSerialIn;
 QueueHandle_t imuQueue;
 
+volatile bool relayState = false;
+volatile bool tipSafetyEnabled = false;
+
 void taskSerialIn(void *pvParameters) {
   
   imuQueue = xQueueCreate(1, sizeof(struct queueBin)); // queue holds one value; intention is to constantly clear queue and replace it with updated values
+  delay(5000);
 
   for(;;) {
+
+    // sendCommand(RETURN_IMU, CMD_NONE);
+
     if (servoSerial.available()) {
       int input = servoSerial.read();
 
@@ -45,7 +52,17 @@ void taskSerialIn(void *pvParameters) {
         memcpy(&msg.eulerZ, &buffer[16], 8);
         xQueueOverwrite(imuQueue, (void *) &msg);          
 
-        // Serial.printf("==YAW: %.2f PITCH: %.2f ROLL: %.2f\n", msg.eulerX, msg.eulerY, msg.eulerZ);
+        // Serial.printf("YAW: %.2f PITCH: %.2f ROLL: %.2f\n", msg.eulerX, msg.eulerY, msg.eulerZ);
+        if (tipSafetyEnabled && abs(msg.eulerY) > IMU_TIP_THRESHOLD) {
+          Serial.printf("TIP DETECTED, SHUTTING OFF SERVOS (PITCH = %lf)\n", msg.eulerY);
+          relayState = false;
+          tipSafetyEnabled = false;
+
+          if (!SERIAL_DEBUG_MODE) {
+            digitalWrite(RELAY_PIN, LOW);
+            digitalWrite(HEAD_PIN, LOW);
+          }
+        }
       }
     }
     delay(10);
@@ -61,8 +78,6 @@ void setup() {
   
   // Initialize serial
   Serial.begin(115200);
-  Serial.println(s_torso.mid);
-  Serial.println(servoCluster[3].mid);
   servoSerial.begin(115200, SERIAL_8N1, 16, 17);
 
   xTaskCreatePinnedToCore(taskSerialIn, "taskSerialIn", 10000, NULL, 1, &h_taskSerialIn, 1);
@@ -94,6 +109,14 @@ void setup() {
   // Bluepad32 initialization
   BP32.setup(&onConnectedController, &onDisconnectedController);
 
+  if (SERIAL_DEBUG_MODE) {
+    Serial.println("Serial debug mode!");
+  } else {
+    Serial.println("SERIAL DEBUG MODE DISABLED, DO NOT ACTIVATE SERVOS");
+  }
+
+  // Send handshake code to Servo2040
+  servoSerial.write(0b01101001);
 }
 
 // Arduino loop function. Runs in CPU 1
@@ -119,7 +142,7 @@ void loop() {
 void mainProcess(ControllerPtr gamepad) {
 
   // Relay debounce variable; provides press/release action for toggling the relay
-  static bool relayState = false;
+
 
   // Check home button state and determine if a debounce action occurs and toggles the relay
   if (gamepad->miscSystem() & operable) {
@@ -149,71 +172,85 @@ void mainProcess(ControllerPtr gamepad) {
     if (gamepad->a()) {
       
       Serial.println("[ESP32]: (B) pressed");
+      tipSafetyEnabled = true;
       actionCrouch(gamepad);
 
     } else if (gamepad->b()) {
 
       Serial.println("[ESP32]: (A) pressed");
+      tipSafetyEnabled = true;
       actionSwipe(gamepad, false);
     
     } else if (gamepad->y()) {
 
       Serial.println("[ESP32]: (X) pressed");
-      if(!ULT_LOCK) {actionRoll(gamepad);}
+      if(!ULT_LOCK) {
+        tipSafetyEnabled = true;
+        actionRoll(gamepad);
+      }
     
     } else if (gamepad->x()) {
 
       Serial.println("[ESP32]: (Y) pressed");
+      tipSafetyEnabled = true;
       actionSwipe(gamepad, true);
     
     } else if (gamepad->dpad() & DPAD_UP) {
 
       Serial.println("[ESP32]: DP-UP pressed");
+      tipSafetyEnabled = true;
       actionEmote1(gamepad);
     
     } else if (gamepad->dpad() & DPAD_DOWN) {
 
       Serial.println("[ESP32]: DP-DOWN pressed");
       //actionEmote2(gamepad);
+      tipSafetyEnabled = true;
       actionEmote5(gamepad);
 
     } else if (gamepad->dpad() & DPAD_LEFT) {
     
       Serial.println("[ESP32]: DP-LEFT pressed");
+      tipSafetyEnabled = true;
       actionEmote3(gamepad);
 
     } else if (gamepad->dpad() & DPAD_RIGHT) {
 
       Serial.println("[ESP32]: DP-RIGHT pressed");
+      tipSafetyEnabled = true;
       actionEmote4(gamepad);
 
     } else if (gamepad->l1()) {
     
       Serial.println("[ESP32]: L-Shoulder pressed");
+      tipSafetyEnabled = true;
       actionPunch(gamepad, true);
       
     } else if (gamepad->l2()) {  
     
       Serial.println("[ESP32]: L-Trigger pressed");
+      tipSafetyEnabled = true;
       actionUpperCut(gamepad, true);
       
     } else if (gamepad->r1()) {
     
       Serial.println("[ESP32]: R-Shoulder pressed");
+      tipSafetyEnabled = true;
       actionPunch(gamepad, false);
       
     } else if (gamepad->r2()) {
     
       Serial.println("[ESP32]: R-Trigger pressed");
+      tipSafetyEnabled = true;
       actionUpperCut(gamepad, false);
       
     } else if (gamepad->thumbL()) {
 
-      Serial.println("[ESP32]: L-Thumb pressed");
+      // Serial.println("[ESP32]: L-Thumb pressed");
 
     } else if (gamepad->thumbR()) {
 
-      Serial.println("[ESP32]: R-Thumb pressed");
+      // Serial.println("[ESP32]: R-Thumb pressed");
 
     } else if (gamepad->miscBack()) {   // (-) Button Pressed
 
@@ -223,40 +260,46 @@ void mainProcess(ControllerPtr gamepad) {
 
       // actionGetupFront(gamepad);
       fallRecovery(gamepad);
+      tipSafetyEnabled = true;
 
     } else if (ly < -AXIS_THRESHOLD || ry < -AXIS_THRESHOLD) {
     
       Serial.println("[ESP32]: Walk forward");
+      tipSafetyEnabled = true;
       actionWalkFwd(gamepad);
       
     } else if (ly > AXIS_THRESHOLD || ry > AXIS_THRESHOLD) {  
     
       Serial.println("[ESP32]: Walk backward");
+      tipSafetyEnabled = true;
       actionWalkBwd(gamepad);
       
     } else if (lx > AXIS_THRESHOLD) {
     
       Serial.println("[ESP32]: Spin right");
+      tipSafetyEnabled = true;
       actionTurn(gamepad, false);
       
     } else if (lx < -AXIS_THRESHOLD) {
 
       Serial.println("[ESP32]: Spin left");
+      tipSafetyEnabled = true;
       actionTurn(gamepad, true);
   
     } else if (rx < -AXIS_THRESHOLD) {
 
       Serial.println("[ESP32]: Strafe left");
+      tipSafetyEnabled = true;
       actionStrafe(gamepad, true);
       
     } else if (rx > AXIS_THRESHOLD) {
 
       Serial.println("[ESP32]: Strafe right");
+      tipSafetyEnabled = true;
       actionStrafe(gamepad, false);
       
     } else {
-      
-      // Serial.println("[ESP32]: Sent idle command");
+
       actionIdle();
 
     }
@@ -417,13 +460,13 @@ void actionPunch(ControllerPtr gamepad, bool left) {
 }
 
 void fallRecovery(ControllerPtr gamepad) {
-  sendCommand(RETURN_IMU, CMD_NONE);
+  sendCommand(RETURN_NONE, CMD_NONE);
   queueBin q;
   getIMU(&q);
   double pitch = q.eulerY;
   Serial.print("PITCH: " + String(pitch) + " | ");
   if (pitch > 30.0) {
-    Serial.println("Robot on its back!");
+    Serial.println("Robot facing up!");
     sendCommand(RETURN_NONE, CMD_PULSE);
     setServoCluster(getupBack_1, ALL_SERVOS);
 
@@ -433,7 +476,7 @@ void fallRecovery(ControllerPtr gamepad) {
     setServoCluster(getupBack_2, 0b10010000000010010);
 
   } else if (pitch < -30.0) {
-    Serial.println("Robot faceplanted!");
+    Serial.println("Robot facing down!");
     sendCommand(RETURN_NONE, CMD_PULSE_DELAY);
     setServoDelay(getupFront_1, ALL_SERVOS, 100);
 
@@ -446,6 +489,8 @@ void fallRecovery(ControllerPtr gamepad) {
     
     sendCommand(RETURN_NONE, CMD_PULSE_DELAY);
     setServoDelay(getupFront_3, 0b101, 100);
+  } else {
+    Serial.println("Robot not tipped..");
   }
 
   while (gamepad->miscHome()) {BP32.update(); delay(50);}
@@ -562,15 +607,8 @@ void actionCrouch(ControllerPtr gamepad) {
 }
 
 void actionIdle() {
-  
-  sendCommand(RETURN_IMU, CMD_PULSE);
+  sendCommand(RETURN_NONE, CMD_PULSE);
   setServoCluster(idleAngles, ALL_SERVOS);
-
-  queueBin q;
-  unsigned long start = micros();
-  getIMU(&q);
-  unsigned long duration = micros() - start;
-  Serial.printf("YAW: %.2f PITCH: %.2f ROLL: %.2f (%ld u)\n", q.eulerX, q.eulerY, q.eulerZ, duration);
 }
 
 void getIMU(queueBin *q) {

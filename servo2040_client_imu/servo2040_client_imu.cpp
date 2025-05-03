@@ -41,15 +41,17 @@ void core1_main() {
     vector v;
     while(1) {
         
-        uint64_t x, y, z;
         imu.getVector(VECTOR_EULER, &v);
-        memcpy(&x, &v.x, sizeof(double)); // No patomic_double, so copy the binary to uint64_t (same size as double)
-        memcpy(&y, &v.y, sizeof(double));
-        memcpy(&z, &v.z, sizeof(double));
-        euler_x = x;
-        euler_y = y;
-        euler_z = z;
-        sleep_ms(10); // 100 Hz sensor updates
+
+        uint8_t buffer[3 * sizeof(double)];
+        memcpy(&buffer[0], &v.x, sizeof(double));
+        memcpy(&buffer[sizeof(double)], &v.y, sizeof(double));
+        memcpy(&buffer[2 * sizeof(double)], &v.z, sizeof(double));
+
+        uart_putc(UART_ID, 0b10010000);
+        uart_write_blocking(UART_ID, buffer, sizeof(buffer));
+
+        sleep_ms(50); // 20 Hz sensor updates
     }
 }
 
@@ -62,12 +64,12 @@ int main() {
     // Initialize LED bar
     led_bar.start();
     led_bar.clear();
-    set_led(0b100000);
+    set_led(0b100000, red_t);
     sleep_ms(100);
 
     // Initialize Servo Cluster
-    servos.init();\
-    set_led(0b110000);
+    servos.init();
+    set_led(0b110000, red_t);
     sleep_ms(100);
 
     // Enable UART
@@ -76,32 +78,36 @@ int main() {
     gpio_set_function(21, GPIO_FUNC_UART);
     gpio_pull_up(20);
     gpio_pull_up(21);
-    set_led(0b111000);
+    set_led(0b111000, red_t);
+    sleep_ms(100);
+
+    // Wait for ESP32 handshake
+    while(wait_until_uart() != 0b01101001) {;}
+    set_led(0b111100, red_t);
     sleep_ms(100);
 
     // Enable core1
     multicore_launch_core1(core1_main);
-    set_led(0b111100);
+    set_led(0b111110, red_t);
     sleep_ms(100);
 
     // Check IMU status
     uint32_t success = multicore_fifo_pop_blocking();
-
     if (success != 0) {
-        set_led(0b101010);
+        set_led(0b101010, red_t);
         while(1) sleep_ms(10);
     }
-    set_led(0b111110);
-    sleep_ms(100);
+    set_led(0b111111, red_t);
+    sleep_ms(500);
 
     //blink LED bar for visual confirmation
-    set_led(0b111111);
+    set_led(0b111111, green_t);
     sleep_ms(500);
-    set_led(0b1000000);
+    set_led(0x00, green_t);
     sleep_ms(500);
-    set_led(0b111111);
+    set_led(0b111111, green_t);
     sleep_ms(500);
-    set_led(0b1000000);
+    set_led(0x00, green_t);
 
     cmd_disable();
 
@@ -119,10 +125,10 @@ int main() {
 
         } else if (returnType == 0x0F) {
             // send back voltage and current (0b1111)
-            return_sensor();
+            //return_sensor();
         } else if (returnType == 0b1001) {
             // send back imu data
-            return_imu();
+            //return_imu();
         } else {
             // packet is invalid
             cmdSuccess = false;
@@ -171,7 +177,7 @@ uint8_t wait_until_uart() {
 void cmd_set_led() {
 
     uint8_t dataPacket = wait_until_uart();
-    set_led(dataPacket);
+    set_led(dataPacket, red_t);
 
 }
 
@@ -219,12 +225,22 @@ void return_sensor() {
     uart_putc(UART_ID, (uint8_t)(i_int % 100));
 }
 
-void set_led(int values) {
+void set_led(int pinMask, color_t color) {
 
     for (int i = 0; i < 6; i++) {
 
         uint8_t mask = 1 << i;
-        led_bar.set_hsv(i, 171.0f, 1.0f, (values & mask) ? 0.1f: 0.0f);
+        if (pinMask & mask) {
+            led_bar.set_rgb(i,
+                (color == red_t) ? 64 : 0,
+                (color == green_t) ? 64 : 0,
+                (color == blue_t) ? 64 : 0
+            );
+        } else {
+            led_bar.set_rgb(i, 0, 0, 0);
+        }
+        // led_bar.set_hsv(i, 171.0f, 1.0f, (pinMask & mask) ? 0.1f: 0.0f);
+
     }
 }
 

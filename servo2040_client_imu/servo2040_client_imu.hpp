@@ -31,9 +31,9 @@
 #define SERVO_MAX   2500.0f
 #define SERVO_MIN   500.0f
 
-typedef enum {
-    NONE, PULSE, ENABLE, DISABLE, LED
-} cmdSelect;
+typedef enum{
+    red_t, blue_t, green_t
+} color_t;
 
 uint8_t wait_until_uart(void);
 
@@ -46,4 +46,4 @@ void cmd_disable(void);
 
 void set_servos(void);
 void set_servos_delay(void);
-void set_led(int values);
+void set_led(int mask, color_t color);
