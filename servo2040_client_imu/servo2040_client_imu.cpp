@@ -4,7 +4,6 @@
 #include "servo2040_client_imu.hpp"
 using namespace plasma;
 using namespace servo;
-using namespace patom::types;
 
 ServoCluster servos = ServoCluster(pio0, 0, servo2040::SERVO_1, 18);
 WS2812 led_bar(servo2040::NUM_LEDS, pio1, 0, servo2040::LED_DATA);
@@ -14,9 +13,6 @@ Analog cur_adc = Analog(servo2040::SHARED_ADC, servo2040::CURRENT_GAIN);
 AnalogMux mux = AnalogMux(servo2040::ADC_ADDR_0, servo2040::ADC_ADDR_1, servo2040::ADC_ADDR_2, PIN_UNUSED, servo2040::SHARED_ADC);
 
 BNO055 imu(i2c1, 26, 27);
-patomic_uint64_t euler_x;
-patomic_uint64_t euler_y;
-patomic_uint64_t euler_z;
 
 float servoValues[] = {0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0};
 
@@ -59,7 +55,6 @@ void core1_main() {
 int main() {
 
     stdio_init_all();
-    patom::PseudoAtomicInit();
 
     // Initialize LED bar
     led_bar.start();
@@ -189,22 +184,6 @@ void cmd_enable() {
 void cmd_disable() {
 
     servos.disable_all();
-}
-
-void return_imu() {
-
-    uint64_t x, y, z;
-    x = euler_x.Load(); // yaw
-    y = euler_y.Load(); // pitch
-    z = euler_z.Load(); // roll
-
-    uint8_t buffer[3 * sizeof(uint64_t)];
-    memcpy(&buffer[0], &x, sizeof(uint64_t));
-    memcpy(&buffer[sizeof(uint64_t)], &y, sizeof(uint64_t));
-    memcpy(&buffer[2 * sizeof(uint64_t)], &z, sizeof(uint64_t));
-
-    uart_putc(UART_ID, 0b10010000);
-    uart_write_blocking(UART_ID, buffer, sizeof(buffer));
 }
 
 void return_sensor() {

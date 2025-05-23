@@ -17,7 +17,6 @@
 
 // User Libraries
 #include "rp2040_bno055.hpp"
-#include "RP2040Atomic.hpp"
 
 #define UART_ID uart1
 

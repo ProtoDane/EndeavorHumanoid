@@ -53,7 +53,8 @@ void taskSerialIn(void *pvParameters) {
         xQueueOverwrite(imuQueue, (void *) &msg);          
 
         // Serial.printf("YAW: %.2f PITCH: %.2f ROLL: %.2f\n", msg.eulerX, msg.eulerY, msg.eulerZ);
-        if (tipSafetyEnabled && abs(msg.eulerY) > IMU_TIP_THRESHOLD) {
+
+        if (tipSafetyEnabled && abs(msg.eulerY) > IMU_TIP_THRESHOLD && FALL_PROTECTION_ENABLED) {
           Serial.printf("TIP DETECTED, SHUTTING OFF SERVOS (PITCH = %lf)\n", msg.eulerY);
           relayState = false;
           tipSafetyEnabled = false;

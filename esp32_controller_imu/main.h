@@ -34,7 +34,8 @@
 // FOR USAGE WITH A SERIAL MONITOR FOR DEBUGGING PURPOSES
 #define SERIAL_DEBUG_MODE false
 
-#define IMU_TIP_THRESHOLD 45.0
+#define IMU_TIP_THRESHOLD 30.0
+#define FALL_PROTECTION_ENABLED true
 
 struct servoStruct {
   int min;
