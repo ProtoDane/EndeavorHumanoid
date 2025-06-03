@@ -23,14 +23,13 @@ QueueHandle_t imuQueue;
 volatile bool relayState = false;
 volatile bool tipSafetyEnabled = false;
 
+// Core1 task to process incoming UART messages from the Servo2040 (mainly IMU data)
 void taskSerialIn(void *pvParameters) {
   
   imuQueue = xQueueCreate(1, sizeof(struct queueBin)); // queue holds one value; intention is to constantly clear queue and replace it with updated values
   delay(5000);
 
   for(;;) {
-
-    // sendCommand(RETURN_IMU, CMD_NONE);
 
     if (servoSerial.available()) {
       int input = servoSerial.read();
