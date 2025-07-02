@@ -220,7 +220,7 @@ void cmdEnable() {
   sendCommand(RETURN_NONE, CMD_ENABLE);
   setServoCluster(idleAngles, ALL_SERVOS); //0b11110000000011111
 
-  delay(250);
+  delay(500);
 }
 
 void cmdDisable() {

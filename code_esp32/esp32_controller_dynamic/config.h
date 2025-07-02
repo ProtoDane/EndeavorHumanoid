@@ -1,6 +1,8 @@
 #ifndef MAIN_H
 #define MAIN_H
 
+// Voltage cutoff threshold to disable control when battery is low.
+// UNUSED DUE TO SERVO2040 VOLTAGE SENSOR BEING TOO NOISY
 #define VOLTAGE_CUTOFF  7.20
 
 // SAFETY LOCK FOR FORWARD ROLL (X-BUTTON)
@@ -15,6 +17,7 @@
 // FOR USAGE WITH A SERIAL MONITOR FOR DEBUGGING PURPOSES
 #define SERIAL_DEBUG_MODE false
 
+// Fall protection settings.  Tip threshold determines a what pitch angle to trigger fall protection.
 #define IMU_TIP_THRESHOLD 30.0
 #define FALL_PROTECTION_ENABLED true
 

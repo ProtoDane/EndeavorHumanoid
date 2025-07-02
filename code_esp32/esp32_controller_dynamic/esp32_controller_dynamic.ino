@@ -28,9 +28,9 @@ volatile bool relayState = false;
 volatile bool tipSafetyEnabled = false;
 
 // PID
-double Kp = 5.0;
+double Kp = 1.0; // go lower
 double Ki = 0.0;
-double Kd = 0.05;
+double Kd = 0.02;
 
 struct queueBin {
   double eulerX;
@@ -47,10 +47,12 @@ void taskSerialIn(void *pvParameters) {
   double pidSet, pidIn, pidOut;
   PID pidPitch(&pidIn, &pidOut, &pidSet, Kp, Ki, Kd, DIRECT);
   pidPitch.SetMode(AUTOMATIC);
-  pidPitch.SetOutputLimits(-20, 20);
+  pidPitch.SetOutputLimits(-25, 25);
   pidPitch.SetSampleTime(10);
 
-  delay(5000);
+  double filteredPitch = 0.0;
+
+  // delay(5000);
 
   for(;;) {
 
@@ -73,17 +75,23 @@ void taskSerialIn(void *pvParameters) {
         memcpy(&msg.eulerY, &buffer[8], 8);
         memcpy(&msg.eulerZ, &buffer[16], 8);
 
-        pidIn = msg.eulerY;
+        filteredPitch = 0.5 * msg.eulerY + (1 - 0.5) * filteredPitch;
+        pidIn = filteredPitch;
         pidSet = 0;
         pidPitch.Compute();
+        // filteredPitch = 0.3 * pidOut + (1 - 0.3) *filteredPitch;
         msg.pidOut = pidOut;
 
         xQueueOverwrite(imuQueue, (void *) &msg);          
 
         // Serial.printf("YAW: %.2f PITCH: %.2f ROLL: %.2f\n", msg.eulerX, msg.eulerY, msg.eulerZ);
+        // Serial.print(msg.eulerY);
+        // Serial.print(",");
+        // Serial.print(filteredPitch);
+        // Serial.println();
 
         if (tipSafetyEnabled && abs(msg.eulerY) > IMU_TIP_THRESHOLD && FALL_PROTECTION_ENABLED) {
-          Serial.printf("TIP DETECTED, SHUTTING OFF SERVOS (PITCH = %lf)\n", msg.eulerY);
+          // Serial.printf("TIP DETECTED, SHUTTING OFF SERVOS (PITCH = %lf)\n", msg.eulerY);
           relayState = false;
           tipSafetyEnabled = false;
 
@@ -121,28 +129,28 @@ void setup() {
   uni_bt_allowlist_set_enabled(true);
 
   String fv = BP32.firmwareVersion();
-  Serial.print("Firmware version installed: ");
-  Serial.println(fv);
+  // Serial.print("Firmware version installed: ");
+  // Serial.println(fv);
 
   // To get the BD Address (MAC address) call:
   const uint8_t* addr = BP32.localBdAddress();
-  Serial.print("BD Address: ");
-  for (int i = 0; i < 6; i++) {
-    Serial.print(addr[i], HEX);
-    if (i < 5)
-      Serial.print(":");
-    else
-      Serial.println();
-  }
+  // Serial.print("BD Address: ");
+  // for (int i = 0; i < 6; i++) {
+  //   Serial.print(addr[i], HEX);
+  //   if (i < 5)
+  //     Serial.print(":");
+  //   else
+  //     Serial.println();
+  // }
 
   // Bluepad32 initialization
   BP32.setup(&onConnectedController, &onDisconnectedController);
 
-  if (SERIAL_DEBUG_MODE) {
-    Serial.println("Serial debug mode!");
-  } else {
-    Serial.println("SERIAL DEBUG MODE DISABLED, DO NOT ACTIVATE SERVOS");
-  }
+  // if (SERIAL_DEBUG_MODE) {
+  //   Serial.println("Serial debug mode!");
+  // } else {
+  //   Serial.println("SERIAL DEBUG MODE DISABLED, DO NOT ACTIVATE SERVOS");
+  // }
 
   // Send handshake code to Servo2040
   servoSerial.write(0b01101001);
@@ -164,7 +172,7 @@ void loop() {
     }
   }
 
-  delay(50);
+  delay(10);
 }
 
 // Top level control structure to determine action sequences based on gamepad input
@@ -200,19 +208,19 @@ void mainProcess(ControllerPtr gamepad) {
     // Check buttons first, then check drive controls last.  If no inputs, send idle command to servo driver
     if (gamepad->a()) {
       
-      Serial.println("[ESP32]: (B) pressed");
+      // Serial.println("[ESP32]: (B) pressed");
       tipSafetyEnabled = true;
       actionCrouch(gamepad);
 
     } else if (gamepad->b()) {
 
-      Serial.println("[ESP32]: (A) pressed");
+      // Serial.println("[ESP32]: (A) pressed");
       tipSafetyEnabled = true;
       actionSwipe(gamepad, false);
     
     } else if (gamepad->y()) {
 
-      Serial.println("[ESP32]: (X) pressed");
+      // Serial.println("[ESP32]: (X) pressed");
       if(!ULT_LOCK) {
         tipSafetyEnabled = true;
         actionRoll(gamepad);
@@ -220,56 +228,56 @@ void mainProcess(ControllerPtr gamepad) {
     
     } else if (gamepad->x()) {
 
-      Serial.println("[ESP32]: (Y) pressed");
+      // Serial.println("[ESP32]: (Y) pressed");
       tipSafetyEnabled = true;
       actionSwipe(gamepad, true);
     
     } else if (gamepad->dpad() & DPAD_UP) {
 
-      Serial.println("[ESP32]: DP-UP pressed");
+      // Serial.println("[ESP32]: DP-UP pressed");
       tipSafetyEnabled = true;
       actionEmote1(gamepad);
     
     } else if (gamepad->dpad() & DPAD_DOWN) {
 
-      Serial.println("[ESP32]: DP-DOWN pressed");
+      // Serial.println("[ESP32]: DP-DOWN pressed");
       //actionEmote2(gamepad);
       tipSafetyEnabled = true;
       actionEmote5(gamepad);
 
     } else if (gamepad->dpad() & DPAD_LEFT) {
     
-      Serial.println("[ESP32]: DP-LEFT pressed");
+      // Serial.println("[ESP32]: DP-LEFT pressed");
       tipSafetyEnabled = true;
       actionEmote3(gamepad);
 
     } else if (gamepad->dpad() & DPAD_RIGHT) {
 
-      Serial.println("[ESP32]: DP-RIGHT pressed");
+      // Serial.println("[ESP32]: DP-RIGHT pressed");
       tipSafetyEnabled = true;
       actionEmote4(gamepad);
 
     } else if (gamepad->l1()) {
     
-      Serial.println("[ESP32]: L-Shoulder pressed");
+      // Serial.println("[ESP32]: L-Shoulder pressed");
       tipSafetyEnabled = true;
       actionPunch(gamepad, true);
       
     } else if (gamepad->l2()) {  
     
-      Serial.println("[ESP32]: L-Trigger pressed");
+      // Serial.println("[ESP32]: L-Trigger pressed");
       tipSafetyEnabled = true;
       actionUpperCut(gamepad, true);
       
     } else if (gamepad->r1()) {
     
-      Serial.println("[ESP32]: R-Shoulder pressed");
+      // Serial.println("[ESP32]: R-Shoulder pressed");
       tipSafetyEnabled = true;
       actionPunch(gamepad, false);
       
     } else if (gamepad->r2()) {
     
-      Serial.println("[ESP32]: R-Trigger pressed");
+      // Serial.println("[ESP32]: R-Trigger pressed");
       tipSafetyEnabled = true;
       actionUpperCut(gamepad, false);
       
@@ -285,37 +293,37 @@ void mainProcess(ControllerPtr gamepad) {
 
     } else if (ly < -AXIS_THRESHOLD || ry < -AXIS_THRESHOLD) {
     
-      Serial.println("[ESP32]: Walk forward");
+      // Serial.println("[ESP32]: Walk forward");
       tipSafetyEnabled = true;
       actionWalkFwd(gamepad);
       
     } else if (ly > AXIS_THRESHOLD || ry > AXIS_THRESHOLD) {  
     
-      Serial.println("[ESP32]: Walk backward");
+      // Serial.println("[ESP32]: Walk backward");
       tipSafetyEnabled = true;
       actionWalkBwd(gamepad);
       
     } else if (lx > AXIS_THRESHOLD) {
     
-      Serial.println("[ESP32]: Spin right");
+      // Serial.println("[ESP32]: Spin right");
       tipSafetyEnabled = true;
       actionTurn(gamepad, false);
       
     } else if (lx < -AXIS_THRESHOLD) {
 
-      Serial.println("[ESP32]: Spin left");
+      // Serial.println("[ESP32]: Spin left");
       tipSafetyEnabled = true;
       actionTurn(gamepad, true);
   
     } else if (rx < -AXIS_THRESHOLD) {
 
-      Serial.println("[ESP32]: Strafe left");
+      // Serial.println("[ESP32]: Strafe left");
       tipSafetyEnabled = true;
       actionStrafe(gamepad, true);
       
     } else if (rx > AXIS_THRESHOLD) {
 
-      Serial.println("[ESP32]: Strafe right");
+      // Serial.println("[ESP32]: Strafe right");
       tipSafetyEnabled = true;
       actionStrafe(gamepad, false);
       
@@ -485,9 +493,9 @@ void fallRecovery(ControllerPtr gamepad) {
   queueBin q;
   getIMU(&q);
   double pitch = q.eulerY;
-  Serial.print("PITCH: " + String(pitch) + " | ");
+  // Serial.print("PITCH: " + String(pitch) + " | ");
   if (pitch > 30.0) {
-    Serial.println("Robot facing up!");
+    // Serial.println("Robot facing up!");
     sendCommand(RETURN_NONE, CMD_PULSE);
     setServoCluster(getupBack_1, ALL_SERVOS);
 
@@ -497,7 +505,7 @@ void fallRecovery(ControllerPtr gamepad) {
     setServoCluster(getupBack_2, 0b10010000000010010);
 
   } else if (pitch < -30.0) {
-    Serial.println("Robot facing down!");
+    // Serial.println("Robot facing down!");
     sendCommand(RETURN_NONE, CMD_PULSE_DELAY);
     setServoDelay(getupFront_1, ALL_SERVOS, 100);
 
@@ -511,7 +519,7 @@ void fallRecovery(ControllerPtr gamepad) {
     sendCommand(RETURN_NONE, CMD_PULSE_DELAY);
     setServoDelay(getupFront_3, 0b101, 100);
   } else {
-    Serial.println("Robot not tipped..");
+    // Serial.println("Robot not tipped..");
   }
 
   while (gamepad->miscHome()) {BP32.update(); delay(50);}
@@ -634,15 +642,18 @@ void actionIdle() {
   queueBin bin;
   getIMU(&bin);
   double dx = 125.0 * tan(radians(bin.pidOut));
-  Serial.printf("Raw PID: %lf | Transform: %lf\n", bin.pidOut, dx);
+  // Serial.printf("Raw PID: %lf | Transform: %lf\n", bin.pidOut, dx);
 
   legAngles l;
   armAngles a = {90.0, 60.0, 0.0, 20.0, -90.0, -60.0, 0.0, -20.0};
-  ik_legs(&l, 20.0 + dx, 5.0, 125.0, 20.0 + dx, 5.0, 125.0);
+  ik_legs(&l, 20.0 - dx, 8.0, 125.0, 20.0 - dx, 8.0, 125.0);
 
   if (l.success) {
     sendCommand(RETURN_NONE, CMD_PULSE);
     setServoCluster2(&l, &a, 0.0);
+  } else {
+    sendCommand(RETURN_NONE, CMD_PULSE);
+    setServoCluster(idleAngles, ALL_SERVOS); 
   }
 }
 
@@ -673,7 +684,7 @@ void onConnectedController(ControllerPtr ctl) {
               properties.btaddr[0], properties.btaddr[1], properties.btaddr[2],
               properties.btaddr[3], properties.btaddr[4], properties.btaddr[5],
               properties.vendor_id, properties.product_id, properties.flags);
-      Serial.println(buf);
+      // Serial.println(buf);
       break;
     }
   }
@@ -690,8 +701,8 @@ void onDisconnectedController(ControllerPtr ctl) {
   for (int i = 0; i < BP32_MAX_GAMEPADS; i++) {
     
     if (myControllers[i] == ctl) {
-      Serial.print("CALLBACK: Controller is disconnected from index=");
-      Serial.println(i);
+      // Serial.print("CALLBACK: Controller is disconnected from index=");
+      // Serial.println(i);
       myControllers[i] = nullptr;
       foundGamepad = true;
       break;
@@ -699,6 +710,6 @@ void onDisconnectedController(ControllerPtr ctl) {
   }
 
   if (!foundGamepad) {
-    Serial.println("CALLBACK: Controller disconnected, but not found in myControllers");
+    // Serial.println("CALLBACK: Controller disconnected, but not found in myControllers");
   }
 }
