@@ -598,27 +598,64 @@ void actionWalkBwd(ControllerPtr gamepad) {
 
 void actionWalkFwd(ControllerPtr gamepad) {
   
-  sendCommand(RETURN_NONE, CMD_PULSE);
-  setServoSequence(0 ,sequence_initFwd, 0b00011111111100011, sizeof(sequence_initFwd) / sizeof(sequence_initFwd[0]));
-  delay(200);
+  double z0 = 125.0, nZ = 40.0, pZ = 20.0;
+  double y0 = 5.0, dY = 15.0;
+  double x0 = 20.0,  dX = 40.0;
+  double dT = 10.0, dA = 20.0;
 
-  int i = 1;
-  while ( (gamepad->axisY() < -AXIS_THRESHOLD || gamepad->axisRY() < -AXIS_THRESHOLD) & i < 6) {
+  // Initial sequence steps
+  for (int i = 0; i < 6; i++) {
+    
+    legAngles l;
+    armAngles a = {90.0 + dA * sin(i * PI / 12), 60.0, 0.0, 20.0, -90.0 + dA * sin(i * PI / 12), -60.0, 0.0, -20.0};
+    ik_legs(&l, 
+      x0 + dX * i / 6, 
+      y0 + dY * sin(i * PI / 6), 
+      z0 - nZ * sin(i * PI / 6), 
+      x0 - dX * i / 6, 
+      y0 - dY * sin(i * PI / 6), 
+      z0 + pZ * sin(i * PI / 6)
+    );    
 
-    sendCommand(RETURN_NONE, CMD_PULSE);
-    setServoSequence(i ,sequence_initFwd, 0b00011111111100011, sizeof(sequence_initFwd) / sizeof(sequence_initFwd[0]));
+    // Perform sanity check to make sure IK calculation was successful
+    if (l.success) {
+      sendCommand(RETURN_NONE, CMD_PULSE);
+      setServoCluster2(&l, &a, dT * sin(i * PI / 12));
+    } else {
+      return;
+    }
 
-    i++;
     BP32.update();
     delay(25);
+
+    if (gamepad->axisY() >= -AXIS_THRESHOLD && gamepad->axisRY() >= -AXIS_THRESHOLD) {
+      return;
+    }
   }
 
-  i = 3;
+  // Continuous sequence
+  int i = 0;
   while (gamepad->axisY() < -AXIS_THRESHOLD || gamepad->axisRY() < -AXIS_THRESHOLD) {
     
-    sendCommand(RETURN_NONE, CMD_PULSE);
-    setServoSequence(i, sequence_walkFwd, 0b00011111111100011, sizeof(sequence_walkFwd) / sizeof(sequence_walkFwd[0]));
-    
+    legAngles l;
+    armAngles a = {90.0 + dA * cos(i * PI / 6), 60.0, 0.0, 20.0, -90.0 + dA * cos(i * PI / 6), -60.0, 0.0, -20.0};
+    ik_legs(&l, 
+      (i%12 < 6) ? (x0 + dX * (1 - (i%6)/3)):(x0 + dX * ((i%6)/3 - 1)), 
+      y0 - dY * sin(PI * i / 6), 
+      (i%12 <= 6) ? (z0 + pZ * sin(PI * (i%6) / 6)):(z0 - nZ * sin(PI * (i%6) / 6)), 
+      (i%12 <= 6) ? (x0 + dX * ((i%6)/3 - 1)):(x0 + dX * (1 - (i%6)/3)), 
+      y0 + dY * sin(PI * i / 6), 
+      (i%12 < 6) ? (z0 - nZ * sin(PI * (i%6) / 6)):(z0 + pZ * sin(PI * (i%6) / 6))
+    );    
+
+    // Perform sanity check to make sure IK calculation was successful
+    if (l.success) {
+      sendCommand(RETURN_NONE, CMD_PULSE);
+      setServoCluster2(&l, &a, dT * cos(i * PI / 6));
+    } else {
+      return;
+    }
+
     i++;
     BP32.update();
     delay(45);
