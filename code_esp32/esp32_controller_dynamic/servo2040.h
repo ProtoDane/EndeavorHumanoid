@@ -4,7 +4,7 @@
 #include <HardwareSerial.h>
 
 #include "config.h"
-#include "movesets.h"
+// #include "movesets.h"
 #include "kinematics.h"
 
 // PREAMBLES
@@ -25,6 +25,14 @@
 #define LEG_SERVOS  0b1111111100000
 #define RIGHT_ARM   0b11110
 #define LEFT_ARM    0b11110000000011110
+
+float idleAngles[] = {
+  0.0, 
+  -90.0, -60.0, 0.0, -20.0, 
+  -4.0, -49.3, 31.2, -4.0, 
+  4.0, 49.3, -31.2, 4.0, 
+  90.0, 60.0, 0.0, 20.0
+};
 
 // UART Instance
 HardwareSerial servoSerial(2);

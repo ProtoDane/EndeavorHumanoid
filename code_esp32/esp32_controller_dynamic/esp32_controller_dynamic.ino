@@ -17,10 +17,6 @@ ControllerPtr myControllers[BP32_MAX_CONTROLLERS];
 #define RELAY_PIN 13
 #define HEAD_PIN  12
 
-// Dual core instances
-TaskHandle_t h_taskSerialIn;
-QueueHandle_t imuQueue;
-
 // Control variables
 bool operable = true;
 bool enableBalancing = false;
@@ -32,12 +28,23 @@ double Kp = 1.0; // go lower
 double Ki = 0.0;
 double Kd = 0.02;
 
+// Dual core instances
+TaskHandle_t h_taskSerialIn;
+QueueHandle_t imuQueue;
+
 struct queueBin {
   double eulerX;
   double eulerY;
   double eulerZ;
   double pidOut;
+  double dX;
 };
+
+void getIMU(queueBin *q) {
+  if (uxQueueMessagesWaiting(imuQueue) > 0) {
+    xQueuePeek(imuQueue, q, 0);
+  }
+}
 
 // Core1 task to process incoming UART messages from the Servo2040 (mainly IMU data)
 void taskSerialIn(void *pvParameters) {
@@ -81,6 +88,7 @@ void taskSerialIn(void *pvParameters) {
         pidPitch.Compute();
         // filteredPitch = 0.3 * pidOut + (1 - 0.3) *filteredPitch;
         msg.pidOut = pidOut;
+        msg.dX = 125.0 * tan(radians(pidOut));
 
         xQueueOverwrite(imuQueue, (void *) &msg);          
 
@@ -596,109 +604,7 @@ void actionWalkBwd(ControllerPtr gamepad) {
   }
 }
 
-void actionWalkFwd(ControllerPtr gamepad) {
-  
-  double z0 = 125.0, nZ = 40.0, pZ = 20.0;
-  double y0 = 5.0, dY = 15.0;
-  double x0 = 20.0,  dX = 40.0;
-  double dT = 10.0, dA = 20.0;
 
-  // Initial sequence steps
-  for (int i = 0; i < 6; i++) {
-    
-    legAngles l;
-    armAngles a = {90.0 + dA * sin(i * PI / 12), 60.0, 0.0, 20.0, -90.0 + dA * sin(i * PI / 12), -60.0, 0.0, -20.0};
-    ik_legs(&l, 
-      x0 + dX * i / 6, 
-      y0 + dY * sin(i * PI / 6), 
-      z0 - nZ * sin(i * PI / 6), 
-      x0 - dX * i / 6, 
-      y0 - dY * sin(i * PI / 6), 
-      z0 + pZ * sin(i * PI / 6)
-    );    
-
-    // Perform sanity check to make sure IK calculation was successful
-    if (l.success) {
-      sendCommand(RETURN_NONE, CMD_PULSE);
-      setServoCluster2(&l, &a, dT * sin(i * PI / 12));
-    } else {
-      return;
-    }
-
-    BP32.update();
-    delay(25);
-
-    if (gamepad->axisY() >= -AXIS_THRESHOLD && gamepad->axisRY() >= -AXIS_THRESHOLD) {
-      return;
-    }
-  }
-
-  // Continuous sequence
-  int i = 0;
-  while (gamepad->axisY() < -AXIS_THRESHOLD || gamepad->axisRY() < -AXIS_THRESHOLD) {
-    
-    legAngles l;
-    armAngles a = {90.0 + dA * cos(i * PI / 6), 60.0, 0.0, 20.0, -90.0 + dA * cos(i * PI / 6), -60.0, 0.0, -20.0};
-    ik_legs(&l, 
-      (i%12 < 6) ? (x0 + dX * (1 - (i%6)/3)):(x0 + dX * ((i%6)/3 - 1)), 
-      y0 - dY * sin(PI * i / 6), 
-      (i%12 <= 6) ? (z0 + pZ * sin(PI * (i%6) / 6)):(z0 - nZ * sin(PI * (i%6) / 6)), 
-      (i%12 <= 6) ? (x0 + dX * ((i%6)/3 - 1)):(x0 + dX * (1 - (i%6)/3)), 
-      y0 + dY * sin(PI * i / 6), 
-      (i%12 < 6) ? (z0 - nZ * sin(PI * (i%6) / 6)):(z0 + pZ * sin(PI * (i%6) / 6))
-    );    
-
-    // Perform sanity check to make sure IK calculation was successful
-    if (l.success) {
-      sendCommand(RETURN_NONE, CMD_PULSE);
-      setServoCluster2(&l, &a, dT * cos(i * PI / 6));
-    } else {
-      return;
-    }
-
-    i++;
-    BP32.update();
-    delay(45);
-  }
-}
-
-void actionCrouch(ControllerPtr gamepad) {
-
-  sendCommand(RETURN_NONE, CMD_PULSE_DELAY);
-  setServoDelay(crouchAngles, ALL_SERVOS, 150);
-  //setServoCluster(crouchAngles, ALL_SERVOS);
-
-  while(gamepad->a()) {BP32.update(); delay(50);}
-
-}
-
-void actionIdle() {
-  // sendCommand(RETURN_NONE, CMD_PULSE);
-  // setServoCluster(idleAngles, ALL_SERVOS);
-
-  queueBin bin;
-  getIMU(&bin);
-  double dx = 125.0 * tan(radians(bin.pidOut));
-  // Serial.printf("Raw PID: %lf | Transform: %lf\n", bin.pidOut, dx);
-
-  legAngles l;
-  armAngles a = {90.0, 60.0, 0.0, 20.0, -90.0, -60.0, 0.0, -20.0};
-  ik_legs(&l, 20.0 - dx, 8.0, 125.0, 20.0 - dx, 8.0, 125.0);
-
-  if (l.success) {
-    sendCommand(RETURN_NONE, CMD_PULSE);
-    setServoCluster2(&l, &a, 0.0);
-  } else {
-    sendCommand(RETURN_NONE, CMD_PULSE);
-    setServoCluster(idleAngles, ALL_SERVOS); 
-  }
-}
-
-void getIMU(queueBin *q) {
-  if (uxQueueMessagesWaiting(imuQueue) > 0) {
-    xQueuePeek(imuQueue, q, 0);
-  }
-}
 
 // Handler for controller connected event
 void onConnectedController(ControllerPtr ctl) {
