@@ -1,0 +1,3 @@
+[submodule "submodules/BNO08x_Pico_Library"]
+	path = submodules/BNO08x_Pico_Library
+	url = https://github.com/robotcopper/BNO08x_Pico_Library.git

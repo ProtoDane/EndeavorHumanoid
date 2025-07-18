@@ -3,6 +3,7 @@
 // Standard C Libraries
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
 
 // Pico SDK Libraries
 #include "pico/stdlib.h"
@@ -17,6 +18,8 @@
 
 // User Libraries
 #include "rp2040_bno055.hpp"
+
+#define IMU_ENABLED false
 
 #define UART_ID uart1
 

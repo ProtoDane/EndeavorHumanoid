@@ -82,15 +82,17 @@ int main() {
     sleep_ms(100);
 
     // Enable core1
-    multicore_launch_core1(core1_main);
+    if (IMU_ENABLED) {multicore_launch_core1(core1_main);}
     set_led(0b111110, red_t);
     sleep_ms(100);
 
     // Check IMU status
-    uint32_t success = multicore_fifo_pop_blocking();
-    if (success != 0) {
-        set_led(0b101010, red_t);
-        while(1) sleep_ms(10);
+    if (IMU_ENABLED) {
+        uint32_t success = multicore_fifo_pop_blocking();
+        if (success != 0) {
+            set_led(0b101010, red_t);
+            while(1) sleep_ms(10);
+        }
     }
     set_led(0b111111, red_t);
     sleep_ms(500);

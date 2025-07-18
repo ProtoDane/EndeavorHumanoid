@@ -3,6 +3,7 @@
 #include <uni.h>
 #include <Bluepad32.h>
 #include <PID_v1.h>
+#include <Adafruit_BNO08x.h>
 
 // Header files
 #include "config.h"
@@ -12,6 +13,10 @@
 
 // Bluepad32 instances
 ControllerPtr myControllers[BP32_MAX_CONTROLLERS];
+
+// BNO08x Setup (if being used)
+HardwareSerial IMUSerial(1);
+Adafruit_BNO08x bno08x(-1);
 
 // GPIO Pins
 #define RELAY_PIN 13
@@ -27,6 +32,8 @@ volatile bool tipSafetyEnabled = false;
 double Kp = 1.0; // go lower
 double Ki = 0.0;
 double Kd = 0.02;
+double pidSet, pidIn, pidOut;
+PID pidPitch(&pidIn, &pidOut, &pidSet, Kp, Ki, Kd, DIRECT);
 
 // Dual core instances
 TaskHandle_t h_taskSerialIn;
@@ -40,6 +47,12 @@ struct queueBin {
   double dX;
 };
 
+struct euler_t {
+  float yaw;
+  float pitch;
+  float roll;
+} ypr;
+
 void getIMU(queueBin *q) {
   if (uxQueueMessagesWaiting(imuQueue) > 0) {
     xQueuePeek(imuQueue, q, 0);
@@ -49,69 +62,27 @@ void getIMU(queueBin *q) {
 // Core1 task to process incoming UART messages from the Servo2040 (mainly IMU data)
 void taskSerialIn(void *pvParameters) {
   
-  imuQueue = xQueueCreate(1, sizeof(struct queueBin)); // queue holds one value; intention is to constantly clear queue and replace it with updated values
-
-  double pidSet, pidIn, pidOut;
-  PID pidPitch(&pidIn, &pidOut, &pidSet, Kp, Ki, Kd, DIRECT);
   pidPitch.SetMode(AUTOMATIC);
-  pidPitch.SetOutputLimits(-25, 25);
+  pidPitch.SetOutputLimits(-20, 20);
   pidPitch.SetSampleTime(10);
 
-  double filteredPitch = 0.0;
+  delay(5000);
+  imuQueue = xQueueCreate(1, sizeof(struct queueBin));
 
-  // delay(5000);
-
-  for(;;) {
-
-    if (servoSerial.available()) {
-      int input = servoSerial.read();
-
-      if (input == 0b11110000) {
-        
-        // Do something with V/I inputs (unused)
-
-      } else if (input == 0b10010000) {
-
-        while (servoSerial.available() < 24);
-
-        uint8_t buffer[24];
-        servoSerial.readBytes(buffer, 24);
-
-        queueBin msg;
-        memcpy(&msg.eulerX, &buffer[0], 8);
-        memcpy(&msg.eulerY, &buffer[8], 8);
-        memcpy(&msg.eulerZ, &buffer[16], 8);
-
-        filteredPitch = 0.5 * msg.eulerY + (1 - 0.5) * filteredPitch;
-        pidIn = filteredPitch;
-        pidSet = 0;
-        pidPitch.Compute();
-        // filteredPitch = 0.3 * pidOut + (1 - 0.3) *filteredPitch;
-        msg.pidOut = pidOut;
-        msg.dX = 125.0 * tan(radians(pidOut));
-
-        xQueueOverwrite(imuQueue, (void *) &msg);          
-
-        // Serial.printf("YAW: %.2f PITCH: %.2f ROLL: %.2f\n", msg.eulerX, msg.eulerY, msg.eulerZ);
-        // Serial.print(msg.eulerY);
-        // Serial.print(",");
-        // Serial.print(filteredPitch);
-        // Serial.println();
-
-        if (tipSafetyEnabled && abs(msg.eulerY) > IMU_TIP_THRESHOLD && FALL_PROTECTION_ENABLED) {
-          // Serial.printf("TIP DETECTED, SHUTTING OFF SERVOS (PITCH = %lf)\n", msg.eulerY);
-          relayState = false;
-          tipSafetyEnabled = false;
-
-          if (!SERIAL_DEBUG_MODE) {
-            digitalWrite(RELAY_PIN, LOW);
-            digitalWrite(HEAD_PIN, LOW);
-          }
-        }
-      }
-    }
-    delay(10);
-  }   
+  switch(IMU_CONFIG) {
+    case IMU_DISABLED:
+      Serial.println("No IMU selected");
+      break;
+    case IMU_055:
+      Serial.println("BNO-055 Selected");
+      process_bno055();
+      break;
+    case IMU_08X:
+      Serial.println("BNO-08X Selected");
+      process_bno08x();
+      break;
+  }
+  while(1) {delay(10);}
 }
   
 
@@ -137,28 +108,36 @@ void setup() {
   uni_bt_allowlist_set_enabled(true);
 
   String fv = BP32.firmwareVersion();
-  // Serial.print("Firmware version installed: ");
-  // Serial.println(fv);
+  Serial.print("Firmware version installed: ");
+  Serial.println(fv);
 
   // To get the BD Address (MAC address) call:
   const uint8_t* addr = BP32.localBdAddress();
-  // Serial.print("BD Address: ");
-  // for (int i = 0; i < 6; i++) {
-  //   Serial.print(addr[i], HEX);
-  //   if (i < 5)
-  //     Serial.print(":");
-  //   else
-  //     Serial.println();
-  // }
+  Serial.print("BD Address: ");
+  for (int i = 0; i < 6; i++) {
+    Serial.print(addr[i], HEX);
+    if (i < 5)
+      Serial.print(":");
+    else
+      Serial.println();
+  }
 
   // Bluepad32 initialization
   BP32.setup(&onConnectedController, &onDisconnectedController);
 
-  // if (SERIAL_DEBUG_MODE) {
-  //   Serial.println("Serial debug mode!");
-  // } else {
-  //   Serial.println("SERIAL DEBUG MODE DISABLED, DO NOT ACTIVATE SERVOS");
-  // }
+  if (SERIAL_DEBUG_MODE) {
+    Serial.println("Serial debug mode!");
+  } else {
+    Serial.println("SERIAL DEBUG MODE DISABLED, DO NOT ACTIVATE SERVOS");
+  }
+
+  if (IMU_CONFIG == IMU_08X) {
+    IMUSerial.begin(115200, SERIAL_8N1, 18, 19);
+    if (!bno08x.begin_UART(&IMUSerial)) {
+      Serial.println("Failed to find BNO08x chip");
+      while(1) {delay(10);}
+    }
+  }
 
   // Send handshake code to Servo2040
   servoSerial.write(0b01101001);
@@ -574,37 +553,6 @@ void actionTurn(ControllerPtr gamepad, bool ccw) {
     delay(30);
   }
 }
-
-void actionWalkBwd(ControllerPtr gamepad) {
-
-  sendCommand(RETURN_NONE, CMD_PULSE);
-  setServoSequence(0 ,sequence_initBwd, 0b00011111111100011, sizeof(sequence_initBwd) / sizeof(sequence_initBwd[0]));
-  delay(200);
-
-  int i = 1;
-  while ( (gamepad->axisY() > AXIS_THRESHOLD || gamepad->axisRY() > AXIS_THRESHOLD) & i < 6) {
-
-    sendCommand(RETURN_NONE, CMD_PULSE);
-    setServoSequence(i ,sequence_initBwd, 0b00011111111100011, sizeof(sequence_initBwd) / sizeof(sequence_initBwd[0]));
-
-    i++;
-    BP32.update();
-    delay(25);
-  }
-
-  i = 3;
-  while (gamepad->axisY() > AXIS_THRESHOLD || gamepad->axisRY() > AXIS_THRESHOLD) {
-    
-    sendCommand(RETURN_NONE, CMD_PULSE);
-    setServoSequence(i, sequence_walkBwd, 0b00011111111100011, sizeof(sequence_walkBwd) / sizeof(sequence_walkBwd[0]));
-    
-    i++;
-    BP32.update();
-    delay(45);
-  }
-}
-
-
 
 // Handler for controller connected event
 void onConnectedController(ControllerPtr ctl) {

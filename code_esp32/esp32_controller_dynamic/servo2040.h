@@ -46,7 +46,7 @@ struct servoStruct {
 };
 
 // Create servoStructs for each calibrated servo.  If working with multiple units, apply the config based on DEVICE_SELECT
-#if DEVICE_SELECT == E20A
+#if defined(ENDEAVOR)
   servoStruct s_torso = {515, 1458, 2397, false};   // TORSO
   servoStruct s_ra1 =   {510, 1495, 2397, false};   // RIGHT ARM SHOULDER BASE
   servoStruct s_ra2 =   {543, 1505, 2413, false};   // RIGHT ARM SHOULDER SWING
@@ -65,7 +65,7 @@ struct servoStruct {
   servoStruct s_ll3 =   {567, 1522, 2437, true};    // LEFT LEG TIBIA
   servoStruct s_ll4 =   {591, 1520, 2428, true};    // LEFT LEG ANKLE
 
-#elif DEVICE_SELECT == C25A
+#elif defined(CONTENDER)
   servoStruct s_torso = {524, 1470, 2405, false};   // TORSO
   servoStruct s_ra1 =   {575, 1528, 2456, false};   // RIGHT ARM SHOULDER BASE
   servoStruct s_ra2 =   {542, 1522, 2420, false};   // RIGHT ARM SHOULDER SWING
@@ -83,7 +83,6 @@ struct servoStruct {
   servoStruct s_ll2 =   {587, 1512, 2415, true};    // LEFT LEG FEMUR
   servoStruct s_ll3 =   {587, 1508, 2400, true};    // LEFT LEG TIBIA
   servoStruct s_ll4 =   {605, 1509, 2416, true};    // LEFT LEG ANKLE
-
 #endif
 
 // Pin mapping array for servos: 0th index = SERVO1, 17th index = SERVO18
