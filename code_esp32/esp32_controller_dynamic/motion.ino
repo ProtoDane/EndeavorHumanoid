@@ -96,10 +96,10 @@ void actionWalkBwd(ControllerPtr gamepad) {
 void actionWalkFwd(ControllerPtr gamepad) {
   
   // Trajectory parameters
-  double z0 = 125.0, nZ = 30.0, pZ = 15.0;  // z0: initial standing height | nZ: vertical up distance | pZ: vertical down distance
-  double y0 = 10.0, dY = 15.0;               // y0: initial sideways offset | dY: sideways foot amplitude
-  double x0 = 10.0,  dX = 20.0;             // x0: initial front/back foot distance | dX: step amplitude
-  double dT = 10.0, dA = 10.0;              // dT: torso angular amplitude | dA: shoulder joint amplitude
+  double z0 = 125.0, nZ = 30.0, pZ = 5.0;  // z0: initial standing height | nZ: vertical up distance | pZ: vertical down distance
+  double y0 = 5.0, dY = 25.0;               // y0: initial sideways offset | dY: sideways foot amplitude
+  double x0 = -20.0,  dX = 30.0;             // x0: initial front/back foot distance | dX: step amplitude
+  double dT = 0.0, dA = 15.0;              // dT: torso angular amplitude | dA: shoulder joint amplitude
 
   // Initial sequence steps
   for (int i = 0; i < 6; i++) {
@@ -124,7 +124,7 @@ void actionWalkFwd(ControllerPtr gamepad) {
     }
 
     BP32.update();
-    delay(20);
+    delay(25);
 
     // Escape condition if the stick is no longer held
     if (gamepad->axisY() >= -AXIS_THRESHOLD && gamepad->axisRY() >= -AXIS_THRESHOLD) {
@@ -160,7 +160,7 @@ void actionWalkFwd(ControllerPtr gamepad) {
 
     i++;
     BP32.update();
-    delay(35);
+    delay(30);
   }
 }
 

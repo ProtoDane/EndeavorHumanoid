@@ -25,8 +25,7 @@ enum IMU_SELECT {IMU_DISABLED, IMU_055, IMU_08X};
 // If you're working with multiple robots, you can use this to select between
 // devices and incorporate their respective calibration and controller mac
 // addresses
-enum ROBOT_ID {ENDEAVOR, CONTENDER};
-#define CONTENDER
+#define ENDEAVOR
 
 // Use DEVICE_SELECT to bind each controller's MAC address to their respective unit
 #if defined(ENDEAVOR)
