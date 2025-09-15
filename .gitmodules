@@ -1,3 +1,3 @@
-[submodule "submodules/BNO08x_Pico_Library"]
-	path = submodules/BNO08x_Pico_Library
-	url = https://github.com/robotcopper/BNO08x_Pico_Library.git
+[submodule "submodules/rp2040_bno055"]
+	path = submodules/rp2040_bno055
+	url = https://github.com/ProtoDane/rp2040_bno055.git
