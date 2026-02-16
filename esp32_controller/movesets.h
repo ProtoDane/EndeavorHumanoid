@@ -1,6 +1,11 @@
+// MOVESETS HEADER FILE
+// Authored by ProtoDane
+
+// Legacy motion generation that stores all servo angles used in the sequence.
+// Primarily used for static poses and emotes.
+
 #ifndef MOVESETS_H 
 #define MOVESETS_H
-
 
 float emote5_2[] = {
 15.0,15.0,-9.1,-46.6,33.1,-9.1,9.1,46.6,-33.1,9.1,

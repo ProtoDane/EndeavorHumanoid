@@ -1,3 +1,10 @@
+// ENDEAVOR HUMANOID ROBOT PROJECT
+// ESP32 PRIMARY CONTROLLER
+// Authored by ProtoDane
+
+// This sketch provides the main functions for the Endeavor robot, providing controls
+// via a Bluetooth controller, IMU functionality for fall detection and stability control,
+// and servo actuation.
 
 // Required Libraries
 #include <uni.h>
@@ -39,6 +46,7 @@ PID pidPitch(&pidIn, &pidOut, &pidSet, Kp, Ki, Kd, DIRECT);
 TaskHandle_t h_taskSerialIn;
 QueueHandle_t imuQueue;
 
+// Container for passing data between Core 0 and Core 1 of the ESP32
 struct queueBin {
   double eulerX;
   double eulerY;
@@ -47,11 +55,7 @@ struct queueBin {
   double dX;
 };
 
-struct euler_t {
-  float yaw;
-  float pitch;
-  float roll;
-} ypr;
+
 
 void getIMU(queueBin *q) {
   if (uxQueueMessagesWaiting(imuQueue) > 0) {
@@ -137,6 +141,7 @@ void setup() {
       Serial.println("Failed to find BNO08x chip");
       while(1) {delay(10);}
     }
+    Serial.println("Found BNO08x chip!");
   }
 
   // Send handshake code to Servo2040
@@ -209,8 +214,9 @@ void mainProcess(ControllerPtr gamepad) {
 
       // Serial.println("[ESP32]: (X) pressed");
       if(!ULT_LOCK) {
-        tipSafetyEnabled = true;
+        tipSafetyEnabled = false;
         actionRoll(gamepad);
+        tipSafetyEnabled = true;
       }
     
     } else if (gamepad->x()) {

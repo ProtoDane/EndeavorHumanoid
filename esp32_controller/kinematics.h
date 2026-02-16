@@ -1,3 +1,8 @@
+// KINEMATICS HEADER FILE
+// Authored by ProtoDane
+
+// Functions and definitions used for inverse kiematics
+
 #ifndef KINEMATICS_H
 #define KINEMATICS_H
 

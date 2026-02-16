@@ -1,8 +1,3 @@
-// CONFIG HEADER FILE
-// Authored by ProtoDane
-
-// Settings and other macros to adjust the behavior of the Endeavor Robot.
-
 #ifndef MAIN_H
 #define MAIN_H
 
@@ -32,15 +27,17 @@ enum IMU_SELECT {IMU_DISABLED, IMU_055, IMU_08X};
 // If you're working with multiple robots, you can use this to select between
 // devices and incorporate their respective calibration and controller mac
 // addresses
-#define CONTENDER
+#define ENDEAVOR
 
 // Use DEVICE_SELECT to bind each controller's MAC address to their respective unit
 #if defined(ENDEAVOR)
   #define CTRL_MAC "98:b6:7f:0a:fa:59"
-  #define IMU_CONFIG IMU_055
+//   #define IMU_CONFIG IMU_055
 #elif defined(CONTENDER)
   #define CTRL_MAC "98:b6:d5:20:65:22"
-  #define IMU_CONFIG  IMU_08X
+//   #define IMU_CONFIG  IMU_08X
 #endif
+
+#define IMU_CONFIG BNO055
 
 #endif

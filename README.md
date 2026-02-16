@@ -18,7 +18,7 @@ I have a [Discord server] where you can leave feedback, get support for your pro
 
 If you like the work I've done and wish to support me, I also have a [Patreon]!
 
-[STARTHERE.md]:./docs/STARTHERE.md
+[STARTHERE.md]:./STARTHERE.md
 [CHANGELOG.md]:./CHANGELOG.md
 [Discord server]:https://discord.gg/Gm2sCxpUSx
 [Patreon]:aaaaaaa

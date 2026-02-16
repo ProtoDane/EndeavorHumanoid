@@ -1,7 +1,7 @@
 // Pimoroni Servo2040 client driver with IMU readback functionality.
 // Uses the Adafruit BNO-055 connected to ADC0 (I2C1-SDA) and ADC1 (I2C1-SCL) 
 
-#include "servo2040_client_imu.hpp"
+#include "servo2040_client.hpp"
 using namespace plasma;
 using namespace servo;
 

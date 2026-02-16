@@ -1,10 +1,13 @@
+// SERVO2040 HEADER FILE
+// Authored by ProtoDane
+
+// Functions and definitions used for communication with the Servo2040
+
 #ifndef SERVO2040_H
 #define SERVO2040_H
 
 #include <HardwareSerial.h>
-
 #include "config.h"
-// #include "movesets.h"
 #include "kinematics.h"
 
 // PREAMBLES
@@ -26,6 +29,7 @@
 #define RIGHT_ARM   0b11110
 #define LEFT_ARM    0b11110000000011110
 
+// Static standing up pose
 float idleAngles[] = {
   0.0, 
   -90.0, -60.0, 0.0, -20.0, 
@@ -45,7 +49,7 @@ struct servoStruct {
   bool angle180; // if false, will map to 270 angle range
 };
 
-// Create servoStructs for each calibrated servo.  If working with multiple units, apply the config based on DEVICE_SELECT
+// Create servoStructs for each calibrated servo.  Rename the macro to your robot, same as in config.h
 #if defined(ENDEAVOR)
   servoStruct s_torso = {515, 1458, 2397, false};   // TORSO
   servoStruct s_ra1 =   {510, 1495, 2397, false};   // RIGHT ARM SHOULDER BASE
@@ -86,7 +90,7 @@ struct servoStruct {
 #endif
 
 // Pin mapping array for servos: 0th index = SERVO1, 17th index = SERVO18
-// IT IS NOT RECOMMENDED THAT YOU MODIFY THIS ARRAY
+// IT IS NOT RECOMMENDED THAT YOU MODIFY THIS ARRAY; THIS IS ALSO THE RECOMMENDED SERVO WIRING ORDER
 servoStruct servoCluster[] = {
   s_torso, s_ra1, s_ra2, s_ra3, s_ra4,
   s_rl1, s_rl2, s_rl3, s_rl4,
@@ -180,6 +184,11 @@ void setServoCluster2(legAngles *l, armAngles *a, float torsoAngle) {
   setServoCluster(angles, ALL_SERVOS);
 }
 
+// Set the robot to a single keyframe in sequence.
+// n = keyframe index
+// sequence = motion sequence array holding all the servo angles
+// pinMask = 18-bit binary that controls which servos are actuated for the sequence
+// sequenceLength = length of sequence (sequence decays into pointer, so length would just be the byte size)
 void setServoSequence(int n, float sequence[], int pinMask, int sequenceLength) {
 
   // Count the servos being actuated in pinMask
@@ -211,6 +220,7 @@ void setServoSequence(int n, float sequence[], int pinMask, int sequenceLength) 
   }
 }
 
+// Implementation of setServoCluster that introduces a time delay to reach the target pose
 void setServoDelay(float angles[], int pinMask, int delayMs) {
   int first = delayMs / 100;
   int second = delayMs % 100;
@@ -221,7 +231,7 @@ void setServoDelay(float angles[], int pinMask, int delayMs) {
   delay(delayMs);
 }
 
-
+// Signal the Servo2040 to enable the servos by setting them to the idleAngles position
 void cmdEnable() {
   Serial.println("Enabling Servo2040...");
   sendCommand(RETURN_NONE, CMD_ENABLE);
@@ -230,6 +240,7 @@ void cmdEnable() {
   delay(500);
 }
 
+// Signal the Servo2040 to disable the servos
 void cmdDisable() {
   Serial.println("Disabling Servo2040...");
   sendCommand(RETURN_NONE, CMD_DISABLE);

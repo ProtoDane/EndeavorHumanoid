@@ -16,11 +16,14 @@ Refer to the following docs in order:
 1. Bill of Materials (BOM)
    * Important: Check the dimensions of the servo before moving to the later steps, especially if purchasing from a vendor different from the BOM. 
 
-2. Servo Calibration Instructions
+2. [Servo Calibration Instructions]
 3. Build Instructions
+   * You can also refer to the STEP file to see how the assembly comes together.
 4. Electronics Layout + Example Wiring
+   * Known issues: ESP32 resets upon relay trigger.  Currently looking into it; consider setting up the relay on its own 5V buck converter.
 5. Programming Instructions
 
+[Servo Calibration Instructions]:./docs/ServoCalibrationDoc.pdf
 [Bluepad32]:https://bluepad32.readthedocs.io/en/latest/
 [Pico SDK]:https://github.com/raspberrypi/pico-sdk
 [Pimoroni SDK]:https://github.com/pimoroni/pimoroni-pico

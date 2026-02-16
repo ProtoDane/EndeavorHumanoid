@@ -1,3 +1,15 @@
+// IMU BREAKOUT SKETCH
+// Authored by ProtoDane
+
+// Functions used by the main sketch for IMU processing and operation.
+
+// Container for IMU data
+struct euler_t {
+  float yaw;
+  float pitch;
+  float roll;
+} ypr;
+
 void setReports(sh2_SensorId_t reportType, long report_interval) {
   Serial.println("Setting desired reports");
   if (! bno08x.enableReport(reportType, report_interval)) {
