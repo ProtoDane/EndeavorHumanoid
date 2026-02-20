@@ -19,9 +19,9 @@ void actionHandler::actionIdle() {
     fetchQueue(&bin);
 
     legAngles l;
-    armAngles a = {90.0, 60.0, 0.0, 20.0, -90.0, -60.0, 0.0, -20.0};
+    armAngles a = {90.0, 60.0, 0.0, -45.0, -90.0, -60.0, 0.0, 45.0};
 
-    ik_legs(&l, 20.0 - bin.dX, 8.0, 125.0, 20.0 - bin.dX, 8.0, 125.0);
+    ik_leg(&l, 20.0 - bin.dX, 8.0, 125.0, 20.0 - bin.dX, 8.0, 125.0);
 
     if (l.success) {
         _servo.sendCommand(RETURN_NONE, CMD_PULSE);
@@ -36,9 +36,9 @@ void actionHandler::actionIdle() {
 void actionHandler::moveWalkFwd(ControllerPtr gamepad) {
   
     // Trajectory parameters
-    double z0 = 125.0, nZ = 30.0, pZ = 15.0;  // z0: initial standing height | nZ: vertical up distance | pZ: vertical down distance
-    double y0 = 10.0, dY = 10.0;               // y0: initial sideways offset | dY: sideways foot amplitude
-    double x0 = -10.0,  dX = 20.0;             // x0: initial front/back foot distance | dX: step amplitude
+    double z0 = 125.0, nZ = 40.0, pZ = 20.0;  // z0: initial standing height | nZ: vertical up distance | pZ: vertical down distance
+    double y0 = 10.0, dY = 20.0;               // y0: initial sideways offset | dY: sideways foot amplitude
+    double x0 = -15.0,  dX = 25.0;             // x0: initial front/back foot distance | dX: step amplitude
     double dT = 10.0, dA = 10.0;              // dT: torso angular amplitude | dA: shoulder joint amplitude
 
     // Initial sequence steps
@@ -46,7 +46,7 @@ void actionHandler::moveWalkFwd(ControllerPtr gamepad) {
         
         legAngles l;
         armAngles a = {90.0 + dA * sin(i * PI / 12), 60.0, 0.0, 20.0, -90.0 + dA * sin(i * PI / 12), -60.0, 0.0, -20.0};
-        ik_legs(&l, 
+        ik_leg(&l, 
         x0 + dX * i / 6, 
         y0 + dY * sin(i * PI / 6), 
         z0 - nZ * sin(i * PI / 6), 
@@ -64,7 +64,7 @@ void actionHandler::moveWalkFwd(ControllerPtr gamepad) {
         }
 
         BP32.update();
-        delay(25);  // 25
+        delay(20);  // 25
 
         // Escape condition if the stick is no longer held
         if (gamepad->axisY() >= -AXIS_THRESHOLD && gamepad->axisRY() >= -AXIS_THRESHOLD) {
@@ -81,7 +81,8 @@ void actionHandler::moveWalkFwd(ControllerPtr gamepad) {
 
         legAngles l;
         armAngles a = {90.0 + dA * cos(i * PI / 6), 60.0, 0.0, 20.0, -90.0 + dA * cos(i * PI / 6), -60.0, 0.0, -20.0};
-        ik_legs(&l, 
+        
+        ik_leg(&l, 
         (i%12 < 6) ? (x0 - bin.dX + dX * (1 - (i%6)/3)):(x0 - bin.dX + dX * ((i%6)/3 - 1)), 
         y0 - dY * sin(PI * i / 6), 
         (i%12 <= 6) ? (z0 + pZ * sin(PI * (i%6) / 6)):(z0 - nZ * sin(PI * (i%6) / 6)), 
@@ -100,7 +101,7 @@ void actionHandler::moveWalkFwd(ControllerPtr gamepad) {
 
         i++;
         BP32.update();
-        delay(35); // 30
+        delay(40); // 35
     }
 }
 
@@ -117,7 +118,7 @@ void actionHandler::moveWalkBwd(ControllerPtr gamepad) {
         
         legAngles l;
         armAngles a = {90.0 + dA * sin(i * PI / 12), 60.0, 0.0, 20.0, -90.0 + dA * sin(i * PI / 12), -60.0, 0.0, -20.0};
-        ik_legs(&l, 
+        ik_leg(&l, 
             x0 + dX * i / 6, 
             y0 - dY * sin(i * PI / 6), 
             z0 + pZ * sin(i * PI / 6), 
@@ -153,7 +154,7 @@ void actionHandler::moveWalkBwd(ControllerPtr gamepad) {
 
         legAngles l;
         armAngles a = {90.0 + dA * cos(i * PI / 6), 60.0, 0.0, 20.0, -90.0 + dA * cos(i * PI / 6), -60.0, 0.0, -20.0};
-        ik_legs(&l, 
+        ik_leg(&l, 
             (i%12 < 6) ? (x0 - bin.dX + dX * (1 - (i%6)/3)):(x0 - bin.dX + dX * ((i%6)/3 - 1)), 
             y0 + dY * sin(PI * i / 6), 
             (i%12 <= 6) ? (z0 - nZ * sin(PI * (i%6) / 6)):(z0 + pZ * sin(PI * (i%6) / 6)), 
@@ -177,41 +178,85 @@ void actionHandler::moveWalkBwd(ControllerPtr gamepad) {
 }
 
 void actionHandler::moveStrafe(ControllerPtr gamepad, bool dir) {
+    
+    double x0 = 10.0;
+    double r0 = 110.0;
+    double dr = 50.0;
+    double th0 = 10.0;
+    double dth1 = 5.0;
+    double dth2 = 10.0;
+    
     int i = 0;
     while ( (dir & gamepad->axisRX() < -AXIS_THRESHOLD) || (!dir & gamepad->axisRX() > AXIS_THRESHOLD) ) {
 
-        _servo.sendCommand(RETURN_NONE, CMD_PULSE);
+        legAngles l;
+        armAngles a = {90.0, 60.0, 0.0, 20.0, -90.0, -60.0, 0.0, -20.0};
 
-        if (dir) {
-            _servo.setServoSequence(i, sequence_strafeL, 0b1111111100000, sizeof(sequence_strafeL) / sizeof(sequence_strafeL[0]));
+        if (dir) { // strafe left
+            ik_polar(&l,
+                r0,
+                x0,
+                th0 + dth2 * sin((i%12) * PI / 12),
+                r0 + dr * sin((i%12) * PI / 12),
+                x0,
+                th0 + dth1 * sin((i%12) * PI / 12)
+            );
+
+            
+        } else { // strafe right
+            ik_polar(&l,
+                r0  + dr * sin((i%12) * PI / 12),
+                x0,
+                th0 + dth1 * sin((i%12) * PI / 12),
+                r0,
+                x0,
+                th0 + dth2 * sin((i%12) * PI / 12)
+            );
+        }
+
+        if (l.success) {
+            _servo.sendCommand(RETURN_NONE, CMD_PULSE);
+            _servo.setServoCluster(&l, &a, (dir ? 30.0 : NULL), (dir ? NULL : -30.0), 0.0);
+            // _servo.setServoCluster(&l, &a, 0.0);
         } else {
-            _servo.setServoSequence(i, sequence_strafeR, 0b1111111100000, sizeof(sequence_strafeR) / sizeof(sequence_strafeR[0]));
+            return;
         }
 
         i++;
         BP32.update();
-        delay(40);
+        vTaskDelay(pdMS_TO_TICKS(30));
     }
 }
 
 void actionHandler::moveSpin(ControllerPtr gamepad, bool dir) {
-    for (int i = 0; i < 3; i++) {
-        sequence_turn[9 * i] = dir ? -15.0 : 15.0;
-    }
 
-    for (int i = 3; i < 6; i++) {
-        sequence_turn[9 * i] = dir ? 15.0 : -15.0;
-    }
+    double x0 = -10.0;
+    double z0 = 125.0;
+    double dZ = 40.0;
+    double y0 = 5.0;
+    double dT = 15.0;
 
     int i = 0;
     while ( (dir & gamepad->axisX() < -AXIS_THRESHOLD) || (!dir & gamepad->axisX() > AXIS_THRESHOLD) ) {
+        
+        legAngles l;
+        armAngles a ={90.0, 60.0, 0.0, 20.0, -90.0, -60.0, 0.0, -20.0};
+        
+        ik_leg(&l,
+            x0, y0, z0 - dZ * sin(PI * (i%6) /  6),
+            x0, y0, z0 - dZ * sin(PI * (i%6) /  6)
+        );
 
-        _servo.sendCommand(RETURN_NONE, CMD_PULSE);
-        _servo.setServoSequence(i, sequence_turn, 0b1111111100001, sizeof(sequence_turn) / sizeof(sequence_turn[0]));
+        if (l.success) {
+            _servo.sendCommand(RETURN_NONE, CMD_PULSE);
+            _servo.setServoCluster(&l, &a, dT * sin((i) * (dir ? -1 : 1) *  PI / 3));
+        } else {
+            return;
+        }
 
         i++;
         BP32.update();
-        delay(30);
+        vTaskDelay(pdMS_TO_TICKS(40));
     }
 }
 

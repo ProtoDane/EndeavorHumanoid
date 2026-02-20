@@ -27,7 +27,7 @@ void ik_leg(legAngles *bin, double x, double y, double z) {
 }
 
 // Compute the inverse kinematics for left and right legs
-void ik_legs(legAngles *bin, double lx, double ly, double lz, double rx, double ry, double rz) {
+void ik_leg(legAngles *bin, double lx, double ly, double lz, double rx, double ry, double rz) {
     legAngles tmp;
 
     // Left leg IK
@@ -53,4 +53,26 @@ void ik_legs(legAngles *bin, double lx, double ly, double lz, double rx, double 
     }
 
     bin->success = true;
+}
+
+void ik_polar(legAngles *bin, double r, double x, double th) {
+    th = th * PI / 180;
+    double r1 = sqrt((r*r - x*x) * (r*r - x*x));
+    double y = r1 * sin(th);
+    double z = r1 * cos(th);
+    
+    ik_leg(bin, x, y, z);
+}
+
+void ik_polar(legAngles *bin, double lr, double lx, double lth, double rr, double rx, double rth) {
+    lth = lth * PI / 180;
+    rth = rth * PI / 180;
+    double r1 = sqrt((lr*lr - lx*lx));
+    double r2 = sqrt((rr*rr - rx*rx));
+    double ly = r1 * sin(lth);
+    double lz = r1 * cos(lth);
+    double ry = r2 * sin(rth);
+    double rz = r2 * cos(rth);
+
+    ik_leg(bin, lx, ly, lz, rx, ry, rz);
 }

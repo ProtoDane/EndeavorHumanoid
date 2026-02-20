@@ -61,6 +61,7 @@ class servoHandler {
 
         void setServoCluster(const float* angles, int pinMask);
         void setServoCluster(legAngles *l, armAngles *a, float torsoAngle);
+        void setServoCluster(legAngles *l, armAngles *a, float lth4, float rth4, float torsoAngle);
 
         void setServoSequence(int n, const float *sequence, int pinMask, int sequenceLength);
 

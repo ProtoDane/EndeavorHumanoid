@@ -339,7 +339,7 @@ void serialOutTask(void *params) {
                 
                 xQueueOverwrite(imuQueue, (void *) &msg);
 
-                Serial.println(msg.dX);
+                // Serial.println(msg.dX);
 
                 if (tipSafetyEnabled && abs(filteredPitch) > IMU_TIP_THRESHOLD && FALL_PROTECTION_ENABLED) {
                     relayState = false;

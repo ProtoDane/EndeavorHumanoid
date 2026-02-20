@@ -78,6 +78,29 @@ void servoHandler::setServoCluster(legAngles *l, armAngles *a, float torsoAngle)
     setServoCluster(angles, ALL_SERVOS);
 }
 
+void servoHandler::setServoCluster(legAngles *l, armAngles *a, float lth4, float rth4, float torsoAngle) {
+    float angles[17];
+    angles[0] = torsoAngle;
+    angles[1] = a->ra1;
+    angles[2] = a->ra2;
+    angles[3] = a->ra3;
+    angles[4] = a->ra4;
+    angles[5] = l->rth1;
+    angles[6] = l->rth2;
+    angles[7] = l->rth3;
+    angles[8] = (rth4 != NULL) ? rth4 : l->rth1;
+    angles[9] = l->lth1;
+    angles[10] = l->lth2;
+    angles[11] = l->lth3;
+    angles[12] = (lth4 != NULL) ? lth4 : l->lth1;
+    angles[13] = a->la1;
+    angles[14] = a->la2;
+    angles[15] = a->la3;
+    angles[16] = a->la4;
+
+    setServoCluster(angles, ALL_SERVOS);
+}
+
 void servoHandler::setServoSequence(int n, const float *sequence, int pinMask, int sequenceLength) {
 
     int servoCount = 0;
