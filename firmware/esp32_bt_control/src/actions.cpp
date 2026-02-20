@@ -37,7 +37,7 @@ void actionHandler::moveWalkFwd(ControllerPtr gamepad) {
   
     // Trajectory parameters
     double z0 = 125.0, nZ = 40.0, pZ = 20.0;  // z0: initial standing height | nZ: vertical up distance | pZ: vertical down distance
-    double y0 = 10.0, dY = 20.0;               // y0: initial sideways offset | dY: sideways foot amplitude
+    double y0 = 15.0, dY = 20.0;               // y0: initial sideways offset | dY: sideways foot amplitude
     double x0 = -15.0,  dX = 25.0;             // x0: initial front/back foot distance | dX: step amplitude
     double dT = 10.0, dA = 10.0;              // dT: torso angular amplitude | dA: shoulder joint amplitude
 
@@ -64,7 +64,7 @@ void actionHandler::moveWalkFwd(ControllerPtr gamepad) {
         }
 
         BP32.update();
-        delay(20);  // 25
+        delay(40);  // 25
 
         // Escape condition if the stick is no longer held
         if (gamepad->axisY() >= -AXIS_THRESHOLD && gamepad->axisRY() >= -AXIS_THRESHOLD) {
@@ -230,7 +230,7 @@ void actionHandler::moveStrafe(ControllerPtr gamepad, bool dir) {
 
 void actionHandler::moveSpin(ControllerPtr gamepad, bool dir) {
 
-    double x0 = -10.0;
+    double x0 = 10.0;
     double z0 = 125.0;
     double dZ = 40.0;
     double y0 = 5.0;
@@ -312,7 +312,7 @@ void actionHandler::actionUpperCut(ControllerPtr gamepad, bool dir) {
     _servo.sendCommand(RETURN_NONE, CMD_PULSE);
     _servo.setServoCluster(dir ? uppCutL_1 : uppCutR_1, ALL_SERVOS);
 
-    delay(500);
+    delay(200);
 
     _servo.sendCommand(RETURN_NONE, CMD_PULSE);
     _servo.setServoCluster(uppCut_2, dir ? 0b10100000000000000 : 0b10100);

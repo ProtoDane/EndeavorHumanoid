@@ -18,7 +18,7 @@ include($ENV{PIMORONI_PICO_PATH}/libraries/servo2040/servo2040.cmake)
 include($ENV{PIMORONI_PICO_PATH}/drivers/button/button.cmake)
 include($ENV{PIMORONI_PICO_PATH}/drivers/analog/analog.cmake)
 include($ENV{PIMORONI_PICO_PATH}/drivers/analogmux/analogmux.cmake)
-include(${PROJECT_SOURCE_DIR}/../submodules/rp2040_bno055/rp2040_bno055.cmake)
+include(${PROJECT_SOURCE_DIR}/../../submodules/rp2040_bno055/rp2040_bno055.cmake)
 
 target_link_libraries(${PROJECT_NAME}
     pico_stdlib

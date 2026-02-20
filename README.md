@@ -1,22 +1,28 @@
 # Endeavor II - 3D Printed Humanoid Robot
-This is a 17-degree of freedom mini humanoid robot that can be 3D printed off a standard machine such as an Ender 3, Prusa, or Bambu.  This is the second iteration, which aims to address the shortcomings and design flaws of its predecessor.  While this robot was specifically designed to compete in ROBO-ONE or similar events (e.g. RoboGames), I want to use this as an experimental platform to explore relevant problems within the humanoid robotics field such as dynamic balancing, advanced motion generation, etc.
+Endeavor II is a small scale humanoid robot with a height of 50 cm and 4 kg weight.  This robot is inspired by the Japanese robotics competition ROBO-ONE, and is capable of agile movements, combat-oriented sequences, and dance moves.  It is also designed to be fully 3D printed off standard commercial machines and use commercial off the shelf electronics.  Depending on shipping fees, the cost of this robot ranges between $600 to $800.
 
-<img src="./images/Endeavor2_CAD.png" height="300" />
+<p align="center">
+  <img src="./media/main.jpg" width="98.5%"/>
+  <img src="./media/demo1.gif" width="49%"/>
+    <img src="./media/demo2.gif" width="49%"/>
+</p>
 
-## Status
+## Latest Update: (DATE)
 **WORK IN PROGRESS**
 
 Version 01: Initial Open Source Release
 
-## Navigation
+## Getting Started
 **Refer to the [STARTHERE.md] in the docs folder for build instructions**
 
 See the [CHANGELOG.md] for milestone updates
 
-## Contributing
+## Support Me!
 I have a [Discord server] where you can leave feedback, get support for your project, and hang out with robotics fanatics!
 
 If you like the work I've done and wish to support me, I also have a [Patreon]!
+
+## Licensing
 
 [STARTHERE.md]:./STARTHERE.md
 [CHANGELOG.md]:./CHANGELOG.md
