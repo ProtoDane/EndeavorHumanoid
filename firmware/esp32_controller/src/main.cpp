@@ -1,4 +1,3 @@
-
 // Include System libraries
 #include <Arduino.h>
 #include <uni.h>
@@ -37,7 +36,7 @@ TaskHandle_t serialTaskHandle;
 QueueHandle_t imuQueue;
 QueueHandle_t serialQueue;
 
-
+// User-defined handler objects
 servoHandler servo;
 imuHandler imu;
 actionHandler actions;
@@ -47,8 +46,15 @@ ControllerPtr myControllers[BP32_MAX_CONTROLLERS];
 // ==========================================================================
 // Helper Functions
 // ==========================================================================
+
+// Schedules messages by bytes to be sent to the Servo2040 via UART 
 void queueSerial(int input) {
     xQueueSend(serialQueue, &input, 0);
+}
+
+// Schedules messages to be sent to the serial console (non-blocking)
+void queueConsole() {
+
 }
 
 // ==========================================================================
@@ -107,7 +113,7 @@ void onDisconnectedController(ControllerPtr ctl) {
     }
 }
 
-// Gamepad input handler
+// Decision Tree based on gamepad input
 void gamepadProcessor(ControllerPtr gamepad) {
     
     // Check home button state and determine if a debounce action occurs and toggles the relay
@@ -290,10 +296,12 @@ void gamepadProcessor(ControllerPtr gamepad) {
 }
 
 // ==========================================================================
-// Core 1 FreeRTOS tasks
+// FreeRTOS tasks
 // ==========================================================================
 
-void serialOutTask(void *params) {
+// Processing task for sending and receiving data to/from the Servo2040 via UART serial
+// Priority 3 | Core 0
+void servoSerialTask(void *params) {
 
     double filteredPitch = 0.0;
     int input;
@@ -361,53 +369,8 @@ void serialOutTask(void *params) {
     }
 }
 
-void serialInTask(void *params) {
-
-    double filteredPitch = 0.0;
-    int input;
-
-    while(1) {
-
-        vTaskDelay(pdMS_TO_TICKS(1));
-
-        if (servoSerial.available()) {
-            int input = servoSerial.read();
-
-            if (input == 0b10010000) {
-
-                while (servoSerial.available() < 24);
-
-                uint8_t buffer[24];
-                servoSerial.readBytes(buffer, 24);
-
-                queueBin msg;
-                memcpy(&msg.eulerX, &buffer[0], 8);
-                memcpy(&msg.eulerY, &buffer[8], 8);
-                memcpy(&msg.eulerZ, &buffer[16], 8);
-
-                filteredPitch = 0.5 * msg.eulerY + (1 - 0.5) * filteredPitch;
-                pidIn = filteredPitch;
-                pidSet = 0;
-                pidPitch.Compute();
-                msg.pidOut = pidOut;
-                msg.dX = 125.0 * tan(radians(pidOut));
-
-                xQueueOverwrite(imuQueue, (void *) & msg);
-
-                if (tipSafetyEnabled && abs(filteredPitch) > IMU_TIP_THRESHOLD && FALL_PROTECTION_ENABLED) {
-                    relayState = false;
-                    tipSafetyEnabled = false;
-
-                    if (!SERIAL_DEBUG_MODE) {
-                        digitalWrite(RELAY_PIN, LOW);
-                        digitalWrite(HEAD_PIN, LOW);
-                    }
-                }                
-            }
-        }
-    }
-}
-
+// IMU Processing task for the BNO-08x
+// Priority 2 | Core 0
 void imuTask(void *params) {
 
     pidPitch.SetMode(AUTOMATIC);
@@ -447,15 +410,12 @@ void imuTask(void *params) {
 }
 
 // ==========================================================================
-// Core 0 FreeRTOS tasks
-// ==========================================================================
-
-// ==========================================================================
 // Arduino Super Loop
 // ==========================================================================
 
 void setup() {
-    // put your setup code here, to run once:
+    
+    // Basic hardware initialization
     delay(3000);
 
     pinMode(RELAY_PIN, OUTPUT);
@@ -463,8 +423,6 @@ void setup() {
 
     Serial.begin(115200);
     servoSerial.begin(115200, SERIAL_8N1, 16, 17);
-
-    Serial.println("1");
 
     // xQueue initialization
     imuQueue = xQueueCreate(1, sizeof(struct queueBin));
@@ -474,7 +432,6 @@ void setup() {
         while(1) {delay(1000); Serial.println("Servo2040 initialization failed");}
     }
 
-    Serial.println("2");
     // Bluepad32 Setup
     BP32.setup(&onConnectedController, &onDisconnectedController);
     BP32.forgetBluetoothKeys();
@@ -497,8 +454,7 @@ void setup() {
         Serial.println();
     }
 
-    Serial.println("3");
-
+    // Config IMU if using BNO-08X
     if (IMU_CONFIG == BNO08x) {
         Serial.println("Using BNO08x IMU");
         if (!imu.begin()) {
@@ -508,18 +464,21 @@ void setup() {
         xTaskCreatePinnedToCore(imuTask, "imuTask", 8192, NULL, 2, &imuTaskHandle, 0);
     }
 
+    // Configure PID
     pidPitch.SetMode(AUTOMATIC);
     pidPitch.SetOutputLimits(-20, 20);
     pidPitch.SetSampleTime(10);
 
     // FreeRTOS tasks
-    // xTaskCreatePinnedToCore(serialInTask, "serialInTask", 10000, NULL, 1, &serialTaskHandle, 0);
-    xTaskCreatePinnedToCore(serialOutTask, "serialTask", 10000, NULL, 3, &serialTaskHandle, 0);
+    xTaskCreatePinnedToCore(servoSerialTask, "serialTask", 10000, NULL, 3, &serialTaskHandle, 0);
 
+    // Initialize action object 
     actions.begin(servo, imuQueue);
 
+    // Send handshake message to Servo2040 to enable functionality
     queueSerial(0b01101001);
 
+    // Blink the head LED to indicate end of setup sequence
     Serial.println("Ready!");
     digitalWrite(HEAD_PIN, HIGH);
     delay(500);
@@ -527,7 +486,7 @@ void setup() {
 }
 
 void loop() {
-    // put your main code here, to run repeatedly:
+
     BP32.update();
 
     for (int i = 0; i < BP32_MAX_GAMEPADS; i++) {

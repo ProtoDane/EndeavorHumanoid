@@ -6,7 +6,16 @@
 #include "config.h"
 #include "presets.h"
 
-#include "robotInfoDefault.h"
+#ifdef CONFIG_FILE
+    #define STRINGIFY(x) #x
+    #define TOSTRING(x) STRINGIFY(x)
+    #pragma message "FUCK MY CHUNGUS LIFE"
+    #include TOSTRING(CONFIG_FILE)
+#else
+    #pragma message "Using robotInfoDefault.h"
+    #include "robotInfoDefault.h"
+    #pragma message "Using robotInfoDefault.h"
+#endif
 
 // PREAMBLES
 #define RETURN_NONE 0x08
